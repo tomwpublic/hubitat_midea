@@ -1,0 +1,410 @@
+/*
+
+*/
+
+metadata
+{
+    definition(name: "raw socket testing", namespace: "tomw", author: "tomw", importUrl: "")
+    {
+        command "openSocket"
+        command "closeSocket"
+        
+        command "_authenticate"
+        
+        command "trace"
+    }
+}
+
+preferences
+{
+    section
+    {
+        input name: "ipAddress", type: "text", title: "IP address", required: true
+        input name: "port", type: "number", title: "port", required: true, defaultValue: 6444
+        input name: "id", type: "text", title: "id", required: true
+        input name: "token", type: "text", title: "token", required: true
+        input name: "key", type: "text", title: "key", required: true
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+    }
+}
+
+def logDebug(msg) 
+{
+    if (logEnable)
+    {
+        log.debug(msg)
+    }
+}
+
+def trace()
+{
+    def intKey = '434a209a5ce141c3b726de067835d7f0'
+    byte[] intData = (0..127).collect{it}
+    byte[] data = encode_8370(intData, MSGTYPE_ENCRYPTED_REQUEST)
+    
+    def enc = aes_cbc(data, "enc", intKey)
+    def dec = aes_cbc(enc, "dec", intKey)
+    
+    logDebug("data == dec: ${data == dec}")
+}
+
+def socketStatus(String message)
+{
+    logDebug("socketStatus: ${message}")
+}
+
+def parse(String message)
+{
+    logDebug("parse: ${message}")
+    logDebug("parse: ${new String(hubitat.helper.HexUtils.hexStringToByteArray(message), "UTF-8")}")
+    
+    /*
+
+response = response[8:72]
+tcp_key(response, key = key)
+
+*/
+}
+
+def openSocket()
+{
+    try
+    {
+        interfaces.rawSocket.connect(ipAddress, port.toInteger(), byteInterface: true)
+    }
+    catch (Exception e)
+    {
+        logDebug("error: ${e.message}")
+    }
+}
+
+def closeSocket()
+{
+    try
+    {
+        interfaces.rawSocket.close()
+    }
+    catch (Exception e)
+    {
+        // swallow errors
+    }
+}
+
+def _writeBytes(byte[] bytes)
+{
+    logDebug("writeBytes: ${bytes}")
+    logDebug("writeBytes: ${hubitat.helper.HexUtils.byteArrayToHexString(bytes)}")
+    logDebug("writeBytes: ${new String(bytes, "UTF-8")}")
+    
+    interfaces.rawSocket.sendMessage(hubitat.helper.HexUtils.byteArrayToHexString(bytes))  
+}
+
+def _authenticate()
+{
+    def request = encode_8370(token.getBytes(), MSGTYPE_HANDSHAKE_REQUEST)
+    _writeBytes(request)
+    /*
+request = self.security.encode_8370(
+            self._token, MSGTYPE_HANDSHAKE_REQUEST)
+        response, _ = self.request(request)
+        response = response[8:72]
+*/
+}
+
+import groovy.transform.Field
+@Field MSGTYPE_HANDSHAKE_REQUEST = 0x0
+@Field MSGTYPE_HANDSHAKE_RESPONSE = 0x1
+@Field MSGTYPE_ENCRYPTED_RESPONSE = 0x3
+@Field MSGTYPE_ENCRYPTED_REQUEST = 0x6
+@Field MSGTYPE_TRANSPARENT = 0xf
+
+import java.security.MessageDigest
+
+def encode_8370(data, msgtype)
+{
+    byte[] header = [0x83, 0x70]
+    def size = data.size()
+    def padding = 0
+    
+    byte[] bData = []
+    
+    if(msgtype in [MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST])
+    {
+        if((size + 2) % 16 != 0)
+        {
+            padding = 16 - (size + 2 & 0xf)
+            size += padding + 32
+            
+            byte[] pBytes = new byte[padding]
+            new Random().nextBytes(pBytes)
+            bData = appendByteArr(bData, pBytes)
+        }
+    }
+    
+    header = appendByteArr(header, intToBytes(size, 2, "big"))
+    header = appendByteArr(header, [0x20, padding << 4 | msgtype])
+    
+    def request_count = state.request_count ?: 0
+    bData = appendByteArr(intToBytes(request_count, 2, "big"), data)
+    state.request_count = request_count + 1
+    
+    if(msgtype in [MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST])
+    {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256")
+        def sign = digest.digest(appendByteArr(header, data))
+
+        def eData = aes_cbc_encrypt(bData, key = '434a209a5ce141c3b726de067835d7f0')
+        
+        bData = appendByteArr(eData, sign)
+    }
+    
+    return appendByteArr(header, bData)
+}
+
+import javax.crypto.spec.SecretKeySpec
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.Cipher
+
+def aes_cbc(data, op = "enc", key = key)
+{
+    // thanks: https://community.hubitat.com/t/groovy-aes-encryption-driver/31556
+    
+    def cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "SunJCE")
+    
+    // note: we already have the key from midea-smart    
+    byte[] encodedKey = key.getBytes()
+    SecretKeySpec aKey = new SecretKeySpec(encodedKey, 0, encodedKey.length, "AES")
+    
+    //self.iv = b'\0' * 16
+    def IVKey = '\0' * 16
+    IvParameterSpec iv = new IvParameterSpec(IVKey.getBytes("UTF-8"))
+    
+    cipher.init(op == "enc" ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE, aKey, iv)
+    
+    return cipher.doFinal(data)
+}
+
+def tcp_key(response, key = key)
+{
+    /*
+        if response == b'ERROR':
+            _LOGGER.error('authentication failed')
+            return b'', False
+        if len(response) != 64:
+            _LOGGER.error('unexpected data length')
+            return b'', False
+        payload = response[:32]
+        sign = response[32:]
+        plain = self.aes_cbc_decrypt(payload, key)
+        if sha256(plain).digest() != sign:
+            _LOGGER.error("sign does not match")
+            return b'', False
+        self._tcp_key = strxor(plain, key)
+        self._request_count = 0
+        self._response_count = 0
+        return self._tcp_key, True
+*/
+}
+
+def decode_8370(data)
+{
+    if(data.size() < 6)
+    {
+        return null
+    }
+    
+    def header = subBytes(data, 0, 6)    
+    if((header[0] != 0x83) || (header[1] != 0x70))
+    {
+        logDebug("not an 8370 message")
+        return null
+    }
+
+    def size = bytesToInt(subBytes(header, 2, 4), "big") + 8
+    def leftover
+    
+    if(data.size() < size)
+    {
+        return null
+    }
+    if(data.size() > size)
+    {
+        /*
+        leftover = data[size:]
+            data = data[:size]
+*/
+    }
+    /*
+            
+        if header[4] != 0x20:
+            raise Exception('missing byte 4')
+        padding = header[5] >> 4
+        msgtype = header[5] & 0xf
+        data = data[6:]
+        if msgtype in (MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST):
+            sign = data[-32:]
+            data = data[:-32]
+            data = self.aes_cbc_decrypt(data, self._tcp_key)
+            if sha256(header + data).digest() != sign:
+                raise Exception('sign does not match')
+            if padding:
+                data = data[:-padding]
+        self._response_count = int.from_bytes(data[:2], 'big')
+        data = data[2:]
+        if leftover:
+            packets, incomplete = self.decode_8370(leftover)
+            return [data] + packets, incomplete
+        return [data], b''
+    */
+}
+
+def request_status_command()
+{
+    def req = 
+    [
+        // 0 header
+        0xaa,
+        // 1 command lenght: N+10
+        0x20,
+        // 2 device type (0xAC for air conditioner)
+        0xac,
+        // 3 Frame SYN CheckSum
+        0x00,
+        // 4-5 Reserved
+        0x00, 0x00,
+        // 6 Message ID
+        0x00,
+        // 7 Frame Protocol Version
+        0x00,
+        // 8 Device Protocol Version
+        0x00,
+        // 9 Message Type: request is 0x03; setting is 0x02
+        0x03,
+        
+        // Byte0 - Data request/response type: 0x41 - check status; 0x40 - Set up
+        0x41,
+        // Byte1
+        0x81,
+        // Byte2 - operational_mode
+        0x00,
+        // Byte3
+        0xff,
+        // Byte4
+        0x03,
+        // Byte5
+        0xff,
+        // Byte6
+        0x00,
+        // Byte7 - Room Temperature Request: 0x02 - indoor_temperature, 0x03 - outdoor_temperature
+        // when set, this is swing_mode
+        0x02,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        // Message ID
+        0x00
+    ]
+    
+    req[-1] = (new Date().getTime() / 1000).toInteger()
+}
+
+def packet_builder(device_id, command)
+{
+    // Init the packet with the header data
+    def packet =
+        [
+            // 2 bytes - StaicHeader
+            0x5a, 0x5a,
+            // 2 bytes - mMessageType
+            0x01, 0x11,
+            // 2 bytes - PacketLenght
+            0x00, 0x00,
+            // 2 bytes
+            0x20, 0x00,
+            // 4 bytes - MessageId
+            0x00, 0x00, 0x00, 0x00,
+            // 8 bytes - Date&Time
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // 6 bytes - mDeviceID
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // 12 bytes
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+        ]
+    
+    //self.packet[12:20] = self.packet_time()
+    //'%Y%m%d%H%M%S%f'
+    def dateBytes = hubitat.helper.HexUtils.hexStringToByteArray(new Date().format('yyyyMMddHHmmssSSSS'))
+    packet = replaceSubArr(packet, subBytes(dateBytes, 0, 8), 12)
+    
+    //self.packet[20:28] = device_id.to_bytes(8, 'little')
+    packet = replaceSubArr(packet, intToBytes(device_id, 8, "little"), 20)        
+}
+
+def appendByteArr(a, b)
+{
+    byte[] c = new byte[a.size() + b.size()]
+    
+    a.eachWithIndex()
+    {
+        it, i ->
+        c[i] = it
+    }
+    
+    def aSz = a.size()
+    
+    b.eachWithIndex()
+    {
+        it, i ->
+        c[i + aSz] = it
+    }
+    
+    return c
+}
+
+def replaceSubArr(orig_arr, new_arr, start)
+{
+    def tmp_arr = orig_arr.collect()
+    new_arr.eachWithIndex
+    {
+        it, i ->
+        tmp_arr[i + start] = it
+    }
+    
+    return tmp_arr
+}
+
+private subBytes(arr, start, length)
+{
+    return arr.toList().subList(start, start + length) as byte[]
+}
+
+def swapEndianness(input)
+{
+    def output = new BigInteger(input).intValue()
+    output = Integer.reverseBytes(output)
+    
+    return output.toBigInteger().toByteArray()
+}
+
+def intToBytes(input, width, endian = "little")
+{
+    def output = input.toBigInteger().toByteArray()
+
+    switch(endian)
+    {
+        case "little":
+            return swapEndianness(output)
+        
+        case "big":
+        default:
+            return output
+    }
+}
+
+def bytesToInt(input, endian = "little")
+{
+    def output = subBytes(input, 0, input.size())
+    
+    output = (endian == "little") ? swapEndianness(output) : output
+
+    return new BigInteger(output).intValue()
+}
