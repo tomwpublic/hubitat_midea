@@ -40,11 +40,10 @@ def trace()
 {
     def intKey = '434a209a5ce141c3b726de067835d7f0'
     byte[] intData = (0..127).collect{it}
-    
-    logDebug([23, 84, 46, 115, 120, -61, 62, -110, 127, -60, -104, 85, -29, 78, -68, -2, -99, -76, -46, -67, -80, -60, -128, -24, -12, 104, 35, 69, -48, -113, -53, -70, -16, -109, 44, -46, -20, -2, 6, -107, 18, -79, -126, 98, -125, -30, 119, -38, -10, -110, 84, 46, -4, -101, 36, 124, -78, -23, 49, -8, 104, 38, -98, 107, 80, 20, 94, 16, -71, 6, 95, 40, 39, 110, -34, -14, -95, -101, 56, -27, -59, -73, -18, 1, -83, -119, -123, -118, -25, -59, 23, 5, -113, 50, -81, 19, 32, 102, -38, 89, -100, 19, -113, 82, 35, -44, 33, 24, -96, 63, -59, -113, -107, -101, -81, 91, -31, 47, -118, -120, -26, -67, -118, 73, 59, -19, 111, -27, 31, -61, 59, 28, -37, -90, 66, -52, -66, 82, -55, -86, -18, -87, -75, 18] == [23, 84, 46, 115, 120, -61, 62, -110, 127, -60, -104, 85, -29, 78, -68, -2, -99, -76, -46, -67, -80, -60, -128, -24, -12, 104, 35, 69, -48, -113, -53, -70, -16, -109, 44, -46, -20, -2, 6, -107, 18, -79, -126, 98, -125, -30, 119, -38, -10, -110, 84, 46, -4, -101, 36, 124, -78, -23, 49, -8, 104, 38, -98, 107, 80, 20, 94, 16, -71, 6, 95, 40, 39, 110, -34, -14, -95, -101, 56, -27, -59, -73, -18, 1, -83, -119, -123, -118, -25, -59, 23, 5, -113, 50, -81, 19, 32, 102, -38, 89, -100, 19, -113, 82, 35, -44, 33, 24, -96, 63, -59, -113, -107, -101, -81, 91, -31, 47, -118, -120, -26, -67, -118, 73, 59, -19, 111, -27, 31, -61, 59, 28, -37, -90, 66, -52, -66, 82, -55, -86, -18, -87, -75, 18])
-    //def res = decode_8370(data)
-    
+ 
+
     /*
+    
     logDebug("starting 2 byte test")
     0.upto(0xffff)
     {
@@ -64,7 +63,6 @@ def trace()
         }
     }
     logDebug("done with 2 byte test")
-*/
 
     /*
     logDebug("starting 8 byte test")
@@ -83,14 +81,17 @@ def trace()
     logDebug("testing intData == dec: ${intData == dec}")
 
     def token = 'd765eba84382ab05da02c036d080b5bac25eb7653d3f99a0c352d6a1ef526aaeb32fd4eddc734802327d8e5b63dc7b3539ef8d3b483fa69fe13b2a5a3a744a54'
-    logDebug("tokenB = ${token.getBytes()}")
-    def enc8370 = encode_8370(token, MSGTYPE_HANDSHAKE_REQUEST)
+    def tokenB = token.getBytes()
+    logDebug("tokenB = ${tokenB}")
+    def enc8370 = encode_8370(tokenB, MSGTYPE_HANDSHAKE_REQUEST)
     def dec8370 = decode_8370(enc8370)
-    logDebug("token.getBytes() == dec8370 (non-enc): = ${token.getBytes() == dec8370}")
+    logDebug("tokenB == dec8370 (non-enc): = ${tokenB == dec8370}")
+    logDebug("non-enc token = ${new String(dec8370)}")
     
-    enc8370 = encode_8370(token, MSGTYPE_ENCRYPTED_REQUEST)
+    enc8370 = encode_8370(tokenB, MSGTYPE_ENCRYPTED_REQUEST)
     dec8370 = decode_8370(enc8370)    
-    logDebug("token.getBytes() == dec8370 (enc): = ${token.getBytes() == dec8370}")
+    logDebug("tokenB == dec8370 (enc): = ${tokenB == dec8370}")
+    logDebug("enc token = ${new String(dec8370)}")
 }
 
 
@@ -172,27 +173,23 @@ def encode_8370(data, msgtype)
     def size = data.size()
     def padding = 0
     
-    byte[] bData = []//subBytes(data, 0, length)
+    byte[] bData = subBytes(data, 0, data.size())
     
     if(msgtype in [MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST])
     {
         if((size + 2) % 16 != 0)
         {
             padding = 16 - (size + 2 & 0xf)
-            logDebug(padding)
             size += padding + 32
             
-            logDebug("bd1 = ${bData}")
             byte[] pBytes = new byte[padding]
             new Random().nextBytes(pBytes)
             bData = appendByteArr(bData, pBytes)
-            logDebug("bd2 = ${bData}")
         }
     }
     
     header = appendByteArr(header, intToBytes(size, 2, "big"))
     header = appendByteArr(header, [i8Tou8(0x20), i8Tou8(padding << 4 | msgtype)])
-    logDebug(padding)
     
     def request_count = state.request_count ?: 0
     bData = appendByteArr(intToBytes(request_count, 2, "big"), data)
@@ -240,6 +237,7 @@ def decode_8370(data)
         logDebug("data.size() = ${data.size()}, size = ${size}")
         return []
     }
+    
     if(data.size() > size)
     {
         leftover = subBytes(data, size, data.size() - size)
@@ -253,17 +251,17 @@ def decode_8370(data)
     }
     
     padding = i8Tou8(bytesToInt([header[5]], "big")) >> 4
-    msgtype = i8Tou8(bytesToInt([header[5]], "big")) & 0xf
-    
-    logDebug(padding)
-    
+    msgtype = i8Tou8(bytesToInt([header[5]], "big")) & 0xf    
+   
     data = subBytes(data, 6, data.size() - 6)
     
     if(msgtype in [MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST])
     {
         sign = subBytes(data, data.size() - 32, 32)
         data = subBytes(data, 0, data.size() - 32)
-        //logDebug("dec eData = ${data}")        
+        
+        //logDebug("dec eData = ${data}")     
+        
         data = aes_cbc(data, "dec", '434a209a5ce141c3b726de067835d7f0')
         
         //logDebug("dec header = ${header}")
@@ -283,15 +281,13 @@ def decode_8370(data)
         
         if(padding)
         {
-            data = subBytes(data, 0, data.size() - padding)
+            // TODO: figure out padding/leftover behavior
+            data = subBytes(data, 0, data.size())// - padding)
         }
     }    
 
-    //bytesToInt(subBytes(data, 0, 2), 2, "big")
-    //state.response_count = 
+    state.response_count = bytesToInt(subBytes(data, 0, 2), "big")
     data = subBytes(data, 2, data.size() - 2)
-    
-    logDebug(data)
 
     if(leftover)
     {
@@ -475,8 +471,14 @@ def replaceSubArr(orig_arr, new_arr, start)
 
 private subBytes(arr, start, length)
 {
-    def sub = arr.toList().subList(start, start + length)
-    return sub.collect{it & 0xFF} as byte[]
+    byte[] sub = new byte[length]
+    
+    for(int i = 0; i < length; i++)
+    {
+        sub[i] = arr[i + start]
+    }
+    
+    return sub
 }
 
 def swapEndianness(input)
