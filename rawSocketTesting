@@ -40,7 +40,6 @@ def trace()
 {
     def intKey = '434a209a5ce141c3b726de067835d7f0'
     byte[] intData = (0..127).collect{it}
- 
 
     /*
     
@@ -74,27 +73,23 @@ def trace()
         }
     }
     logDebug("done with 8 byte test")
-*/
-    
+*/    
     
     def enc = aes_cbc(intData, "enc", intKey)
     def dec = aes_cbc(enc, "dec", intKey)    
     logDebug("testing intData == dec: ${intData == dec}")
 
-    def token = 'd765eba84382ab05da02c036d080b5bac25eb7653d3f99a0c352d6a1ef526aaeb32fd4eddc734802327d8e5b63dc7b3539ef8d3b483fa69fe13b2a5a3a744a54'
-    def tokenB = token.getBytes()
-    logDebug("tokenB = ${tokenB}")
-    logDebug("tokenB.size = ${tokenB.size()}")
+    def tokenB = token.getBytes() ?: 
+        'd765eba84382ab05da02c036d080b5bac25eb7653d3f99a0c352d6a1ef526aaeb32fd4eddc734802327d8e5b63dc7b3539ef8d3b483fa69fe13b2a5a3a744a54'.getBytes()
+    
     def enc8370 = encode_8370(tokenB, MSGTYPE_HANDSHAKE_REQUEST)
+    logDebug(enc8370.collect{it & 0xFF})
     def dec8370 = decode_8370(enc8370)
     logDebug("tokenB == dec8370 (non-enc): = ${tokenB == dec8370}")
-    logDebug("non-enc token = ${new String(dec8370)}")
     
     enc8370 = encode_8370(tokenB, MSGTYPE_ENCRYPTED_REQUEST)
-    logDebug("enc size = ${enc8370.size()}")
     dec8370 = decode_8370(enc8370)    
     logDebug("tokenB == dec8370 (enc): = ${tokenB == dec8370}")
-    logDebug("enc token = ${new String(dec8370)}")
 
     /*
     intData = (0..63).collect{it}
@@ -117,14 +112,15 @@ def socketStatus(String message)
 def parse(String message)
 {
     logDebug("parse: ${message}")
-    logDebug("parse: ${new String(hubitat.helper.HexUtils.hexStringToByteArray(message), "UTF-8")}")
     
-    /*
-
-response = response[8:72]
-tcp_key(response, key = key)
-
-*/
+    def rdB = hubitat.helper.HexUtils.hexStringToByteArray(message)
+    logDebug("parse: ${rdB}")
+    
+    if(rdB.size() >= 72)
+    {
+        def response = subBytes(rdB, 8, 64)
+        logDebug("tcp_key: ${tcp_key(response, key)}")
+    }                 
 }
 
 def openSocket()
@@ -153,24 +149,19 @@ def closeSocket()
 
 def _writeBytes(byte[] bytes)
 {
-    logDebug("writeBytes: ${bytes}")
-    logDebug("writeBytes: ${hubitat.helper.HexUtils.byteArrayToHexString(bytes)}")
-    logDebug("writeBytes: ${new String(bytes, "UTF-8")}")
+    logDebug("writeBytes: ${bytes.collect{it & 0xFF}}")
     
-    interfaces.rawSocket.sendMessage(hubitat.helper.HexUtils.byteArrayToHexString(bytes))  
+    
+    def wrStr = hubitat.helper.HexUtils.byteArrayToHexString(bytes)
+    logDebug("writeBytes: ${wrStr}")
+    
+    interfaces.rawSocket.sendMessage(wrStr)  
 }
 
 def _authenticate()
 {
     def request = encode_8370(token.getBytes(), MSGTYPE_HANDSHAKE_REQUEST)
-    logDebug(request)
-    //_writeBytes(request)
-    /*
-request = self.security.encode_8370(
-            self._token, MSGTYPE_HANDSHAKE_REQUEST)
-        response, _ = self.request(request)
-        response = response[8:72]
-*/
+    _writeBytes(request)
 }
 
 import groovy.transform.Field
@@ -214,7 +205,8 @@ def encode_8370(data, msgtype)
         MessageDigest digest = MessageDigest.getInstance("SHA-256")
         def sign = digest.digest(appendByteArr(header, data))
         
-        data = aes_cbc(data, "enc", '434a209a5ce141c3b726de067835d7f0')
+        // if tcp_key isn't available, just use a random key
+        data = aes_cbc(data, "enc", state.tcp_key ?: '434a209a5ce141c3b726de067835d7f0')
         
         data = appendByteArr(data, sign)
     }
@@ -256,6 +248,7 @@ def decode_8370(data)
         sign = subBytes(data, data.size() - 32, 32)
         data = subBytes(data, 0, data.size() - 32)
         
+        // if tcp_key isn't available, just use a random key
         data = aes_cbc(data, "dec", '434a209a5ce141c3b726de067835d7f0')
         
         MessageDigest digest = MessageDigest.getInstance("SHA-256")
@@ -327,6 +320,8 @@ def tcp_key(response, key = key)
         logDebug("sign does not match")
         return null
     }
+    
+    logDebug("tcp_key plain = ${plain.collect{it & 0xFF}}")
     
     def tcp_key = plain ^ key.getBytes()
     state.tcp_key = tcp_key
@@ -474,6 +469,15 @@ def swapEndianness(input)
 def intToBytes(input, width, endian = "little")
 {
     def output = new BigInteger(input).toByteArray()
+    
+    byte[] pad
+    
+    if(output.size() < width)
+    {
+        def padding = width - output.size()
+        pad = [0] * padding
+        output = appendByteArr(pad, output)        
+    }
     
     switch(endian)
     {
