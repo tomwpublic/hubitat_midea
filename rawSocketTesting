@@ -76,6 +76,7 @@ def trace()
     logDebug("done with 8 byte test")
 */
     
+    
     def enc = aes_cbc(intData, "enc", intKey)
     def dec = aes_cbc(enc, "dec", intKey)    
     logDebug("testing intData == dec: ${intData == dec}")
@@ -83,15 +84,28 @@ def trace()
     def token = 'd765eba84382ab05da02c036d080b5bac25eb7653d3f99a0c352d6a1ef526aaeb32fd4eddc734802327d8e5b63dc7b3539ef8d3b483fa69fe13b2a5a3a744a54'
     def tokenB = token.getBytes()
     logDebug("tokenB = ${tokenB}")
+    logDebug("tokenB.size = ${tokenB.size()}")
     def enc8370 = encode_8370(tokenB, MSGTYPE_HANDSHAKE_REQUEST)
     def dec8370 = decode_8370(enc8370)
     logDebug("tokenB == dec8370 (non-enc): = ${tokenB == dec8370}")
     logDebug("non-enc token = ${new String(dec8370)}")
     
     enc8370 = encode_8370(tokenB, MSGTYPE_ENCRYPTED_REQUEST)
+    logDebug("enc size = ${enc8370.size()}")
     dec8370 = decode_8370(enc8370)    
     logDebug("tokenB == dec8370 (enc): = ${tokenB == dec8370}")
     logDebug("enc token = ${new String(dec8370)}")
+
+    /*
+    intData = (0..63).collect{it}
+    intKey = 'ed39553af1748a24f88e8c8db815dc5a'
+    MessageDigest digest = MessageDigest.getInstance("SHA-256")
+    def sign = digest.digest(intData)    
+    def eBytes = aes_cbc(intData, "enc", intKey)
+    
+    tcp_key(appendByteArr(eBytes, sign), intKey)
+    */
+    
 }
 
 
@@ -149,7 +163,8 @@ def _writeBytes(byte[] bytes)
 def _authenticate()
 {
     def request = encode_8370(token.getBytes(), MSGTYPE_HANDSHAKE_REQUEST)
-    _writeBytes(request)
+    logDebug(request)
+    //_writeBytes(request)
     /*
 request = self.security.encode_8370(
             self._token, MSGTYPE_HANDSHAKE_REQUEST)
@@ -170,21 +185,20 @@ import java.security.MessageDigest
 def encode_8370(data, msgtype)
 {
     byte[] header = [i8Tou8(0x83), i8Tou8(0x70)]
+    
     def size = data.size()
     def padding = 0
-    
-    byte[] bData = subBytes(data, 0, data.size())
     
     if(msgtype in [MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST])
     {
         if((size + 2) % 16 != 0)
         {
-            padding = 16 - (size + 2 & 0xf)
-            size += padding + 32
+            padding = 16 - ((size + 2) & 0xf)
+            size += (padding + 32)
             
             byte[] pBytes = new byte[padding]
             new Random().nextBytes(pBytes)
-            bData = appendByteArr(bData, pBytes)
+            data = appendByteArr(data, pBytes)
         }
     }
     
@@ -192,56 +206,31 @@ def encode_8370(data, msgtype)
     header = appendByteArr(header, [i8Tou8(0x20), i8Tou8(padding << 4 | msgtype)])
     
     def request_count = state.request_count ?: 0
-    bData = appendByteArr(intToBytes(request_count, 2, "big"), data)
+    data = appendByteArr(intToBytes(request_count, 2, "big"), data)
     state.request_count = request_count + 1
     
     if(msgtype in [MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST])
     {
         MessageDigest digest = MessageDigest.getInstance("SHA-256")
-        def sign = digest.digest(appendByteArr(header, bData))
+        def sign = digest.digest(appendByteArr(header, data))
         
-        //logDebug("enc header = ${header}")
-        //logDebug("enc data = ${bData}")        
-        //logDebug("enc sign = ${sign}")
-
-        def eData = aes_cbc(bData, "enc", '434a209a5ce141c3b726de067835d7f0')
+        data = aes_cbc(data, "enc", '434a209a5ce141c3b726de067835d7f0')
         
-        //logDebug("enc eData = ${eData}")
-        
-        bData = appendByteArr(eData, sign)
+        data = appendByteArr(data, sign)
     }
     
-    return appendByteArr(header, bData)
+    return appendByteArr(header, data)
 }
 
 def decode_8370(data)
-{
-    if(data.size() < 6)
-    {
-        logDebug("too small")
-        return []
-    }
-    
+{    
     def header = subBytes(data, 0, 6)
+    data = subBytes(data, 6, data.size() - 6)
+
     if(i8Tou8(bytesToInt([header[0]], "big")) != 0x83 || i8Tou8(bytesToInt([header[1]], "big")) != 0x70)
     {
         logDebug("not an 8370 message")
         return []
-    }
-
-    def size = i16Tou16(bytesToInt(subBytes(header, 2, 2), "big")) + 8
-    def leftover
-    
-    if(data.size() < size)
-    {
-        logDebug("data.size() = ${data.size()}, size = ${size}")
-        return []
-    }
-    
-    if(data.size() > size)
-    {
-        leftover = subBytes(data, size, data.size() - size)
-        data = subBytes(data, 0, size)
     }
     
     if(i8Tou8(bytesToInt([header[4]], "big")) != 0x20)
@@ -250,28 +239,27 @@ def decode_8370(data)
         return []
     }
     
-    padding = i8Tou8(bytesToInt([header[5]], "big")) >> 4
-    msgtype = i8Tou8(bytesToInt([header[5]], "big")) & 0xf    
-   
-    data = subBytes(data, 6, data.size() - 6)
+    def padding = i8Tou8(bytesToInt([header[5]], "big")) >> 4
+    def msgtype = i8Tou8(bytesToInt([header[5]], "big")) & 0xf
+    
+    def size = i16Tou16(bytesToInt(subBytes(header, 2, 2), "big"))
+    
+    if(data.size() < (size + 2))
+    {
+        // request_count was not in size, so count 2 extra bytes here
+        logDebug("data.size() = ${data.size()}, size + 2 = ${size + 2}")
+        return []
+    }
     
     if(msgtype in [MSGTYPE_ENCRYPTED_RESPONSE, MSGTYPE_ENCRYPTED_REQUEST])
     {
         sign = subBytes(data, data.size() - 32, 32)
         data = subBytes(data, 0, data.size() - 32)
         
-        //logDebug("dec eData = ${data}")     
-        
         data = aes_cbc(data, "dec", '434a209a5ce141c3b726de067835d7f0')
-        
-        //logDebug("dec header = ${header}")
-        //logDebug("dec data = ${data}")
         
         MessageDigest digest = MessageDigest.getInstance("SHA-256")
         def check = digest.digest(appendByteArr(header, data))
-        
-        //logDebug("dec sign = ${sign}")
-        //logDebug(check)
         
         if(check != sign)
         {
@@ -281,18 +269,12 @@ def decode_8370(data)
         
         if(padding)
         {
-            // TODO: figure out padding/leftover behavior
-            data = subBytes(data, 0, data.size())// - padding)
+            data = subBytes(data, 0, data.size() - padding)
         }
     }    
 
     state.response_count = bytesToInt(subBytes(data, 0, 2), "big")
     data = subBytes(data, 2, data.size() - 2)
-
-    if(leftover)
-    {
-        return appendByteArr(data, self.decode_8370(leftover))
-    }
     
     return data
 }
@@ -333,9 +315,9 @@ def tcp_key(response, key = key)
         logDebug("unexpected data length")
         return null
     }
-    
-    def sign = subBytes(response, 0, 32)
-    def payload = subBytes(response, 32, 32)
+        
+    def payload = subBytes(response, 0, 32)
+    def sign = subBytes(response, 32, 32)
     
     def plain = aes_cbc(payload, "dec", key)
     
