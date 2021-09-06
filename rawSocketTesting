@@ -115,12 +115,8 @@ def parse(String message)
     
     def rdB = hubitat.helper.HexUtils.hexStringToByteArray(message)
     logDebug("parse: ${rdB}")
-    
-    if(rdB.size() >= 72)
-    {
-        def response = subBytes(rdB, 8, 64)
-        logDebug("tcp_key: ${tcp_key(response, key)}")
-    }                 
+
+    logDebug("tcp_key: ${tcp_key(rdB, key)}") 
 }
 
 def openSocket()
@@ -308,6 +304,8 @@ def tcp_key(response, key = key)
         logDebug("unexpected data length")
         return null
     }
+
+    response = subBytes(response, 8, 64)
         
     def payload = subBytes(response, 0, 32)
     def sign = subBytes(response, 32, 32)
