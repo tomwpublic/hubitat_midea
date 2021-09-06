@@ -299,7 +299,7 @@ def tcp_key(response, key = key)
         return null
     }
     
-    if(response.size() != 64)
+    if(response.size() != 72)
     {
         logDebug("unexpected data length")
         return null
