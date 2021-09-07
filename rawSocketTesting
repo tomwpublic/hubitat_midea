@@ -115,12 +115,10 @@ def trace()
     logDebug(tcp_key(resp, key))
     */
     
-    def req = request_status_command()
-    logDebug(req)
-    logDebug(hubitat.helper.HexUtils.byteArrayToHexString(req))
-    logDebug(crc8(req))
+    byte[] req = request_status_command()    
+    logDebug(hubitat.helper.HexUtils.byteArrayToHexString(packet_builder(id, req)))
     
-    parse('837000402001894897218CF1C79F143381578B67AC6420413CC363855D1E16A3E992337E609F8D72388862B10FA11851651EB2D502C73530AFCCAE6818F8BF7C6340C3426D5176AD')
+    // parse('837000402001894897218CF1C79F143381578B67AC6420413CC363855D1E16A3E992337E609F8D72388862B10FA11851651EB2D502C73530AFCCAE6818F8BF7C6340C3426D5176AD')
 }
 
 def socketStatus(String message)
@@ -323,6 +321,8 @@ import javax.crypto.spec.SecretKeySpec
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.Cipher
 
+@Field signKey = 'xhdiwjnchekd4d512chdjx5d8e4c394D2D7S'.getBytes()
+
 def aes_cbc(data, op = "enc", key = key)
 {
     // thanks: https://community.hubitat.com/t/groovy-aes-encryption-driver/31556
@@ -344,8 +344,7 @@ def aes_cbc(data, op = "enc", key = key)
 
 def aes_ecb(data, op = "enc")
 {    
-    def signKey = 'xhdiwjnchekd4d512chdjx5d8e4c394D2D7S'
-    def encKey = md5(signKey.getBytes())
+    def encKey = md5(signKey)
     SecretKeySpec aKey = new SecretKeySpec(encKey, 0, encKey.length, "AES")
     
     def cipher = Cipher.getInstance("AES/ECB/PKCS5Padding", "SunJCE")
@@ -459,7 +458,8 @@ def request_status_command()
         0x00
     ]
     
-    req[-1] = (new Date().getTime() / 1000).toInteger()
+    byte[] secs = 0//intToBytes((new Date().getTime() / 1000).toInteger(), 1, "little")
+    req = appendByteArr(req, secs)
     
     return req
 }
@@ -493,7 +493,18 @@ def packet_builder(device_id, command)
     packet = replaceSubArr(packet, subBytes(dateBytes, 0, 8), 12)
     
     //self.packet[20:28] = device_id.to_bytes(8, 'little')
-    packet = replaceSubArr(packet, intToBytes(device_id, 8, "little"), 20)        
+    packet = replaceSubArr(packet, intToBytes(device_id, 8, "little"), 20)
+    
+    // packet_builder.finalize()
+    def encCmd = aes_ecb(command, "enc")
+    // Append the command data(48 bytes) to the packet
+    packet = appendByteArr(packet, subBytes(encCmd, 0, 48))
+    // PacketLength
+    packet = replaceSubArr(packet, intToBytes(packet.size() + 16, 2, "little"), 4)
+    // Append a basic checksum data(16 bytes) to the packet
+    packet = appendByteArr(packet, md5(appendByteArr(packet, signKey)))
+    
+    return packet
 }
 
 def appendByteArr(a, b)
@@ -626,24 +637,6 @@ def i16Tou16(input)
     0x74, 0x2A, 0xC8, 0x96, 0x15, 0x4B, 0xA9, 0xF7,
     0xB6, 0xE8, 0x0A, 0x54, 0xD7, 0x89, 0x6B, 0x35
     ]
-
-
-/*
-def crc8(data)
-{
-    int crc_value = 0xFF
-    def k
-    data.each
-    {
-        k = (crc_value ^ i8Tou8(it))
-        if(k > 256) { k -= 256 }
-        if(k < 0) { k += 256 }
-        crc_value = i8Tou8(crc8_854_table[k])
-    }
-    
-    return crc_value
-}
-*/
 
 int crc8(value)
 {
