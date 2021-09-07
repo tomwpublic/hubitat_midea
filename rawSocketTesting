@@ -79,7 +79,13 @@ def trace()
     def enc = aes_cbc(intData, "enc", intKey)
     def dec = aes_cbc(enc, "dec", intKey)    
     logDebug("testing intData == dec: ${intData == dec}")
-
+    */
+    
+    def enc2 = aes_ecb(intData, "enc")
+    def dec2 = aes_ecb(enc2, "dec")
+    logDebug("testing intData == dec2: ${intData == dec2}")
+    
+    /*
     def tokenB = hubitat.helper.HexUtils.hexStringToByteArray(token ?: 'd765eba84382ab05da02c036d080b5bac25eb7653d3f99a0c352d6a1ef526aaeb32fd4eddc734802327d8e5b63dc7b3539ef8d3b483fa69fe13b2a5a3a744a54')
     
     def enc8370 = encode_8370(tokenB, MSGTYPE_HANDSHAKE_REQUEST)
@@ -334,6 +340,26 @@ def aes_cbc(data, op = "enc", key = key)
     cipher.init(op == "enc" ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE, aKey, iv)
     
     return cipher.doFinal(data)
+}
+
+def aes_ecb(data, op = "enc")
+{    
+    def signKey = 'xhdiwjnchekd4d512chdjx5d8e4c394D2D7S'
+    def encKey = md5(signKey.getBytes())
+    SecretKeySpec aKey = new SecretKeySpec(encKey, 0, encKey.length, "AES")
+    
+    def cipher = Cipher.getInstance("AES/ECB/PKCS5Padding", "SunJCE")
+    cipher.init(op == "enc" ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE, aKey)
+    
+    return cipher.doFinal(data)
+}
+
+def md5(data)
+{
+    MessageDigest digest = MessageDigest.getInstance("MD5")
+    byte[] md5sum = digest.digest()
+    
+    return md5sum
 }
 
 def tcp_key(response, key = key)
