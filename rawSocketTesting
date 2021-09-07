@@ -119,7 +119,7 @@ def parse(String message)
     
     if(rdB.size() >= 13)
     {
-        logDebug("tcp_key: ${tcp_key(response, key)}")
+        logDebug("tcp_key: ${tcp_key(rdB, key)}")
     }
 }
 
