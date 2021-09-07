@@ -73,8 +73,8 @@ def trace()
         }
     }
     logDebug("done with 8 byte test")
-*/    
-    
+    */    
+    /*
     def enc = aes_cbc(intData, "enc", intKey)
     def dec = aes_cbc(enc, "dec", intKey)    
     logDebug("testing intData == dec: ${intData == dec}")
@@ -90,6 +90,7 @@ def trace()
     enc8370 = encode_8370(tokenB, MSGTYPE_ENCRYPTED_REQUEST)
     dec8370 = decode_8370(enc8370)    
     logDebug("tokenB == dec8370 (enc): = ${tokenB == dec8370}")
+    */
 
     /*
     intData = (0..63).collect{it}
@@ -101,6 +102,8 @@ def trace()
     tcp_key(appendByteArr(eBytes, sign), intKey)
     */
     
+    byte[] resp = [-125, 112, 0, 64, 32, 1, -119, 72, -70, 107, -61, 12, -63, 1, -90, 19, 107, -90, -56, -112, 22, -127, 5, 119, 66, 97, 112, 39, -80, -41, -52, -70, -28, -94, -118, 5, -85, -128, -119, -40, 47, -107, 55, -55, -11, -60, 36, -19, -64, -32, -10, 94, 114, 107, -7, -63, -41, 110, -41, 64, 111, 41, -118, -107, 121, 64, 57, 77, 71, -64, 121, 96]
+    logDebug(tcp_key(resp, key))
 }
 
 
@@ -277,7 +280,7 @@ def decode_8370(data)
         }
     }    
 
-    state.response_count = bytesToInt(subBytes(data, 0, 2), "big")
+    state.response_count = i16Tou16(bytesToInt(subBytes(data, 0, 2), "big"))
     data = subBytes(data, 2, data.size() - 2)
     
     return data
@@ -291,11 +294,11 @@ def aes_cbc(data, op = "enc", key = key)
 {
     // thanks: https://community.hubitat.com/t/groovy-aes-encryption-driver/31556
     
-    def cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", "SunJCE")
+    def cipher = Cipher.getInstance("AES/CBC/NoPadding", "SunJCE")
     
     // note: we already have the key from midea-smart    
-    byte[] encodedKey = key.getBytes()
-    SecretKeySpec aKey = new SecretKeySpec(encodedKey, 0, encodedKey.length, "AES")
+    byte[] keyBytes = hubitat.helper.HexUtils.hexStringToByteArray(key)
+    SecretKeySpec aKey = new SecretKeySpec(keyBytes, 0, keyBytes.length, "AES")
     
     //self.iv = b'\0' * 16
     def IVKey = '\0' * 16
@@ -332,11 +335,23 @@ def tcp_key(response, key = key)
     {
         logDebug("sign does not match")
         return null
+    }    
+    
+    byte[] keyBytes = hubitat.helper.HexUtils.hexStringToByteArray(key)
+    
+    if(plain.size() != keyBytes.size())
+    {
+        logDebug("size mismatch")
+        return null
     }
     
-    logDebug("tcp_key plain = ${plain.collect{it & 0xFF}}")
-    
-    def tcp_key = plain ^ key.getBytes()
+    (0..(plain.size() - 1)).each
+    {
+        // tcp_key = strxor(plain, key)
+        plain[it] = plain[it] ^ keyBytes[it]
+    }
+
+    def tcp_key = hubitat.helper.HexUtils.byteArrayToHexString(plain)
     state.tcp_key = tcp_key
     
     state.request_count = 0
