@@ -115,8 +115,9 @@ def parse(String message)
     
     def rdB = hubitat.helper.HexUtils.hexStringToByteArray(message)
     logDebug("parse: ${rdB}")
-
-    logDebug("tcp_key: ${tcp_key(rdB, key)}") 
+    logDebug("parse: ${rdB.size()}")
+    
+    logDebug("tcp_key: ${tcp_key(response, key)}")
 }
 
 def openSocket()
@@ -145,8 +146,7 @@ def closeSocket()
 
 def _writeBytes(byte[] bytes)
 {
-    logDebug("writeBytes: ${bytes.collect{it & 0xFF}}")
-    
+    logDebug("writeBytes: ${bytes.collect{it & 0xFF}}")    
     
     def wrStr = hubitat.helper.HexUtils.byteArrayToHexString(bytes)
     logDebug("writeBytes: ${wrStr}")
@@ -156,7 +156,17 @@ def _writeBytes(byte[] bytes)
 
 def _authenticate()
 {
-    def request = encode_8370(token.getBytes(), MSGTYPE_HANDSHAKE_REQUEST)
+    def tgb = token.getBytes()
+    def thstba = hubitat.helper.HexUtils.hexStringToByteArray(token)
+    
+    logDebug("tgb = ${tgb}")    
+    def request = encode_8370(tgb, MSGTYPE_HANDSHAKE_REQUEST)
+    _writeBytes(request)
+    
+    pauseExecution(3000)
+    
+    logDebug("thstba = ${thstba}")
+    request = encode_8370(thstba, MSGTYPE_HANDSHAKE_REQUEST)
     _writeBytes(request)
 }
 
@@ -293,7 +303,7 @@ def aes_cbc(data, op = "enc", key = key)
 
 def tcp_key(response, key = key)
 {
-    if(response == 'ERROR'.getBytes())
+    if(subBytes(response, 8, 5) == 'ERROR'.getBytes())
     {
         logDebug("authentication failed")
         return null
