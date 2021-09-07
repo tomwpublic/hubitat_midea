@@ -117,7 +117,10 @@ def parse(String message)
     logDebug("parse: ${rdB}")
     logDebug("parse: ${rdB.size()}")
     
-    logDebug("tcp_key: ${tcp_key(response, key)}")
+    if(rdB.size() >= 13)
+    {
+        logDebug("tcp_key: ${tcp_key(response, key)}")
+    }
 }
 
 def openSocket()
@@ -159,11 +162,13 @@ def _authenticate()
     def tgb = token.getBytes()
     def thstba = hubitat.helper.HexUtils.hexStringToByteArray(token)
     
+    /*
     logDebug("tgb = ${tgb}")    
     def request = encode_8370(tgb, MSGTYPE_HANDSHAKE_REQUEST)
     _writeBytes(request)
     
     pauseExecution(3000)
+    */
     
     logDebug("thstba = ${thstba}")
     request = encode_8370(thstba, MSGTYPE_HANDSHAKE_REQUEST)
