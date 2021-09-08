@@ -42,28 +42,39 @@ def trace()
     def intKey = '434a209a5ce141c3b726de067835d7f0'
     byte[] intData = (0..127).collect{it}
 
-    /*
-    
-    logDebug("starting 2 byte test")
+
+    def log = true       
+    logDebug("starting 2 byte test little")
     0.upto(0xffff)
     {
         if(it != bytesToInt(intToBytes(it, 2, "little"), "little"))
         {
-            logDebug("error: {it}")
+            if(log)
+            {
+                logDebug("error: ${it}")
+                log = false
+            }
         }
     }
-    logDebug("done with 2 byte test")
+    logDebug("done with 2 byte test little")
     
-    logDebug("starting 2 byte test")
+    
+    
+    log = true    
+    logDebug("starting 2 byte test big")
     0.upto(0xffff)
     {
         if(it != bytesToInt(intToBytes(it, 2, "big"), "big"))
         {
-            logDebug("error: {it}")
+            if(log)
+            {
+                logDebug("error: ${it}")
+                log = false
+            }
         }
     }
-    logDebug("done with 2 byte test")
-
+    logDebug("done with 2 byte test big")
+    
     /*
     logDebug("starting 8 byte test")
     for(int i = 0; i <= 0xffffffffffffffff; i + 0xF00F0FF0)
@@ -76,19 +87,20 @@ def trace()
     logDebug("done with 8 byte test")
     */
 
-    /*
+
+    
     def enc = aes_cbc(intData, "enc", intKey)
     def dec = aes_cbc(enc, "dec", intKey)    
     logDebug("testing intData == dec: ${intData == dec}")
-    */
     
-    /*
+    
+    
     def enc2 = aes_ecb(intData, "enc")
     def dec2 = aes_ecb(enc2, "dec")
     logDebug("testing intData == dec2: ${intData == dec2}")
-    */
+
     
-    /*
+    
     def tokenB = hubitat.helper.HexUtils.hexStringToByteArray(token ?: 'd765eba84382ab05da02c036d080b5bac25eb7653d3f99a0c352d6a1ef526aaeb32fd4eddc734802327d8e5b63dc7b3539ef8d3b483fa69fe13b2a5a3a744a54')
     
     def enc8370 = encode_8370(tokenB, MSGTYPE_HANDSHAKE_REQUEST)
@@ -99,8 +111,8 @@ def trace()
     enc8370 = encode_8370(tokenB, MSGTYPE_ENCRYPTED_REQUEST)
     dec8370 = decode_8370(enc8370)    
     logDebug("tokenB == dec8370 (enc): = ${tokenB == dec8370}")
-    */
-
+    
+    
 
     /*
     intData = (0..63).collect{it}
@@ -112,6 +124,7 @@ def trace()
     tcp_key(appendByteArr(eBytes, sign), intKey)
     */
     
+    
     /*
     byte[] resp = [-125, 112, 0, 64, 32, 1, -119, 72, -70, 107, -61, 12, -63, 1, -90, 19, 107, -90, -56, -112, 22, -127, 5, 119, 66, 97, 112, 39, -80, -41, -52, -70, -28, -94, -118, 5, -85, -128, -119, -40, 47, -107, 55, -55, -11, -60, 36, -19, -64, -32, -10, 94, 114, 107, -7, -63, -41, 110, -41, 64, 111, 41, -118, -107, 121, 64, 57, 77, 71, -64, 121, 96]
     logDebug(getMsgType(resp))
@@ -121,6 +134,7 @@ def trace()
     //byte[] req = request_status_command()    
     //logDebug(hubitat.helper.HexUtils.byteArrayToHexString(packet_builder(id, req)))
     
+
     parse('837000402001894897218CF1C79F143381578B67AC6420413CC363855D1E16A3E992337E609F8D72388862B10FA11851651EB2D502C73530AFCCAE6818F8BF7C6340C3426D5176AD')
     parse('83700040200189484552524F52')
     
@@ -540,14 +554,12 @@ def packet_builder(device_id, command)
     // Add the CRC8
     def crc = crc8(subBytes(command, 10, command.size() - 10))
     command = appendByteArr(command, [i8Tou8(crc)])
-    logDebug(command.size())
     // Set the length of the command data
     // self.data[0x01] = len(self.data)
 
     // Add checksum
     def checksum = checksum(subBytes(command, 1, command.size() - 1))
     command = appendByteArr(command, [i8Tou8(checksum)])
-    logDebug(command.size())
     
     // packet_builder.finalize()
     def encCmd = aes_ecb(command, "enc")
@@ -606,20 +618,35 @@ private subBytes(arr, start, length)
     return sub
 }
 
-def swapEndianness(input)
+def swapEndiannessU16(input)
+{    
+    return [i8Tou8(input[1]), i8Tou8(input[0])]
+}
+
+def swapEndiannessU32(input)
 {
-    def output = new BigInteger(input).intValue()
-    output = Integer.reverseBytes(output)
-    
-    return output.toBigInteger().toByteArray()
+    return [input[3], input[2], input[1], input[0]]
+}
+
+def swapEndiannessU64(input)
+{
+    return [input[7], input[6], input[5], input[4],
+            input[3], input[2], input[1], input[0]]
 }
 
 def intToBytes(input, width, endian = "little")
 {
     def output = new BigInteger(input).toByteArray()
     
-    byte[] pad
+    if(output.size() > width)
+    {
+        // if we got too many bytes, lop off the MSB(s)
+        output = subBytes(output, output.size() - width, width)
+        output = output.collect{it & 0xFF}
+    }
     
+    byte[] pad    
+   
     if(output.size() < width)
     {
         def padding = width - output.size()
@@ -627,10 +654,22 @@ def intToBytes(input, width, endian = "little")
         output = appendByteArr(pad, output)        
     }
     
-    switch(endian)
+    if("little" == endian)
     {
-        case "little":
-            output = swapEndianness(output)    
+        switch(width)
+        {
+            case 1:
+                break
+            case 2:
+                output = swapEndiannessU16(output)
+                break
+            case 4:
+                output = swapEndiannessU32(output)
+                break
+            case 8:
+                output = swapEndiannessU64(output)
+                break
+        }
     }
     
     return output.collect{it & 0xFF}
@@ -640,10 +679,24 @@ def bytesToInt(input, endian = "little")
 {
     def output = subBytes(input, 0, input.size())
     
-    output = (endian == "little") ? swapEndianness(output) : output
-    output.collect{it & 0xFF}
-
-    return be = new BigInteger(output).intValue() 
+    int retVal = 0
+    output.eachWithIndex
+    {
+        it, i ->
+        
+        switch(endian)
+        {
+            case "little":
+                retVal += ((it & 0xFF).toInteger() << (i * 8))
+                break
+            case "big":
+            default:
+                retVal += (it & 0xFF).toInteger() << ((output.size() - 1 - i) * 8)
+                break
+        }
+    }
+    
+    return retVal
 }
 
 def i8Tou8(input)
