@@ -44,6 +44,7 @@ def trace()
     
     logDebug(intToBytes(id, 8, "little"))
     
+    /*
     def log = true       
     logDebug("starting 2 byte test little")
     0.upto(0xffff)
@@ -73,6 +74,7 @@ def trace()
         }
     }
     logDebug("done with 2 byte test big")
+    */
 
     /*
     logDebug("starting 8 byte test")
@@ -140,7 +142,7 @@ def trace()
     logDebug(decode_8370(hubitat.helper.HexUtils.hexStringToByteArray(req)))
     */
     
-    def refreshPacket = [90, 90, 1, 17, 104, 0, 32, 0, 0, 0, 0, 0, 32, 33, 9, 8, 18, 85, 18, 8, -104, 109, 3, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 122, -24, -106, 26, -62, -53, -65, -99, 127, -19, -126, -115, -67, 18, -127, -99, -10, -126, 77, -59, -33, 30, -75, -81, 58, -32, -34, -36, -81, 76, -122, 40, 27, 20, -128, -68, -32, -18, -100, 61, 31, -34, -63, 26, 93, 48, 73, -67, -44, 29, -116, -39, -113, 0, -78, 4, -23, -128, 9, -104, -20, -8, 66, 126]
+    def refreshPacket = [90, 90, 1, 17, 104, 0, 32, 0, 0, 0, 0, 0, 32, 33, 9, 8, 20, 69, 72, 5, -104, 109, 3, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 122, -24, -106, 26, -62, -53, -65, -99, 127, -19, -126, -115, -67, 18, -127, -99, -115, -59, 87, -60, 98, 97, -27, 110, -38, -124, -37, -10, -2, 89, -12, 58, 60, 12, -90, -118, -34, -127, 0, -72, 104, 82, 57, -111, 85, -115, -113, 67, -44, 29, -116, -39, -113, 0, -78, 4, -23, -128, 9, -104, -20, -8, 66, 126]
     logDebug(id.toLong() == bytesToInt(subBytes(refreshPacket, 20, 8), "little"))
     logDebug(id.toLong() == bytesToInt(intToBytes(id.toLong(), 8, "little"), "little"))
     
@@ -789,7 +791,6 @@ int crc8(value)
 
 def checksum(data)
 {
-    def sum = 0
-    data.each{ sum = (sum += (it & 0xFF)) & 0xFF }
+    def sum = data.sum()
     return (~ sum + 1) & 0xFF
 }
