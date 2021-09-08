@@ -123,6 +123,11 @@ def trace()
     
     parse('837000402001894897218CF1C79F143381578B67AC6420413CC363855D1E16A3E992337E609F8D72388862B10FA11851651EB2D502C73530AFCCAE6818F8BF7C6340C3426D5176AD')
     parse('83700040200189484552524F52')
+    
+    /*
+    def req = '8370008E2066D531645D3E0EB420E989EB5847B8A445F98AC9F81DEA7D1ED6FD81E736FCF9785A8059D1EEF3052EDEB5AD5E55CA5E073931E8E304CD697E0639208A92CF468CA0F2DDA25E012FCFCF57CE159B4EF151AAA117BE2EFD0A9A7048EA65FC0F51F800510DC5DC1C2679A4E75DBB88C220351AB928F0499D2D0A4ADC725D6FDF3E340396A86FBBF422BCC5787BACB75C456E'
+    logDebug(decode_8370(hubitat.helper.HexUtils.hexStringToByteArray(req)))
+    */
 }
 
 def socketStatus(String message)
@@ -132,7 +137,7 @@ def socketStatus(String message)
 
 def parse(String message)
 {
-    //logDebug("parse: ${message}")    
+    logDebug("parse: ${message}")    
     def rdB = hubitat.helper.HexUtils.hexStringToByteArray(message)
     logDebug("parse: ${rdB}")
     
@@ -273,7 +278,7 @@ def encode_8370(data, msgtype)
         def sign = digest.digest(appendByteArr(header, data))
         
         // if tcp_key isn't available, just use a random key
-        data = aes_cbc(data, "enc", state.tcp_key ?: '434a209a5ce141c3b726de067835d7f0')
+        data = aes_cbc(data, "enc", state.tcp_key ?: '4D67055D53288313335D65FB2CBA3DDB04001F8AF6880CBDB5BC45DA67EC8A35')
         
         data = appendByteArr(data, sign)
     }
@@ -316,7 +321,7 @@ def decode_8370(data)
         data = subBytes(data, 0, data.size() - 32)
         
         // if tcp_key isn't available, just use a random key
-        data = aes_cbc(data, "dec", state.tcp_key ?: '434a209a5ce141c3b726de067835d7f0')
+        data = aes_cbc(data, "dec", state.tcp_key ?: '4D67055D53288313335D65FB2CBA3DDB04001F8AF6880CBDB5BC45DA67EC8A35')
         
         MessageDigest digest = MessageDigest.getInstance("SHA-256")
         def check = digest.digest(appendByteArr(header, data))
@@ -490,11 +495,12 @@ def request_status_command()
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
         // Message ID
-        0x00
+        (state.request_count ?: 1) & 0xFF
     ]
     
-    byte[] secs = 0//intToBytes((new Date().getTime() / 1000).toInteger(), 1, "little")
-    req = appendByteArr(req, secs)
+    //self.data[-1] = datetime.datetime.now().second
+    //byte[] secs = 0//intToBytes((new Date().getTime() / 1000).toInteger(), 1, "little")
+    //req = appendByteArr(req, secs)
     
     return req
 }
@@ -529,6 +535,19 @@ def packet_builder(device_id, command)
     
     //self.packet[20:28] = device_id.to_bytes(8, 'little')
     packet = replaceSubArr(packet, intToBytes(device_id, 8, "little"), 20)
+
+    // base_command.finalize()
+    // Add the CRC8
+    def crc = crc8(subBytes(command, 10, command.size() - 10))
+    command = appendByteArr(command, [i8Tou8(crc)])
+    logDebug(command.size())
+    // Set the length of the command data
+    // self.data[0x01] = len(self.data)
+
+    // Add checksum
+    def checksum = checksum(subBytes(command, 1, command.size() - 1))
+    command = appendByteArr(command, [i8Tou8(checksum)])
+    logDebug(command.size())
     
     // packet_builder.finalize()
     def encCmd = aes_ecb(command, "enc")
@@ -684,4 +703,11 @@ int crc8(value)
     }
     
     return crc
+}
+
+def checksum(data)
+{
+    def sum = 0
+    data.each{ sum = (sum += (it & 0xFF)) & 0xFF }
+    return (~ sum + 1) & 0xFF
 }
