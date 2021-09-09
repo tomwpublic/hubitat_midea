@@ -593,10 +593,10 @@ def appliance_response(data)
     }
     else
     {
-        indoorTempInteger = ((i8Tou8(data[11]) - 50) / 2).toInteger()
+        indoorTempInteger = ((i8Tou8(data[11]) - 50) / 2).toInteger()        
+        Float indoorTempDecimal = getBits(data, 15, 0, 3) * 0.1
         
-        Float indoorTempDecimal = (data[11] & 0xF) * 0.1    
-        indoorTempDecimal = (i8Tou8(data[11]) > 49) ? (indoorTempInteger.toFloat() + indoorTempDecimal) : (indoorTempDecimal = indoorTempInteger.toFloat() - indoorTempDecimal)
+        indoorTempDecimal = (i8Tou8(data[11]) > 49) ? (indoorTempInteger.toFloat() + indoorTempDecimal) : (indoorTempInteger.toFloat() - indoorTempDecimal)
         
         resp += [indoor_temperature:   indoorTempDecimal]
     }
@@ -865,6 +865,33 @@ def i8Tou8(input)
 def i16Tou16(input)
 {
     return input & 0xFFFF
+}
+
+def getBit(pByte, pIndex)
+{
+    return (pByte >> pIndex) & 0x01
+}
+
+def getBits(pBytes, pIndex, pStartIndex, pEndIndex)
+{
+    if(pStartIndex > pEndIndex)
+    {
+        StartIndex = pEndIndex
+        EndIndex = pStartIndex
+    }
+    else
+    {
+        StartIndex = pStartIndex
+        EndIndex = pEndIndex
+    }
+    
+    tempVal = 0x00
+    StartIndex.upto(EndIndex)
+    {
+        tempVal = tempVal | getBit(pBytes[pIndex], it) << (it - StartIndex)
+    }
+    
+    return tempVal
 }
 
 @Field crc8_854_table =
