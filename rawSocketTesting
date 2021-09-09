@@ -11,6 +11,7 @@ metadata
         
         command "_authenticate"
         command "_refresh"
+        command "_process_response", ["string"]
         
         command "trace"
     }
@@ -168,6 +169,11 @@ def trace()
     
     //logHexBytes(signKey)
     */
+    
+    def resp = '8370008E206394E7C00F3EB17C82CA92683769FB59062E16255FEAEBCDA54AFDCC1258F201DF4018119C30025351FEB7943EFDF9786A343312DD624C966D9FBDC486410462EBD498060E458EFCCAC673AB32298ED4BB2D0B63D5BDA6FD12A9B8433B7B9A2B346FEC2A33AB58937DA36A49E6FA3ACA2B175FE26A486E3B9902ECF3BD1350092231F02C8A895FDF2A300C95CBD616B9F8'
+    parse(resp)
+    //_process_response(data1)
+    
 }
 
 def logHexBytes(data)
@@ -217,6 +223,13 @@ def parse(String message)
         case MSGTYPE_ENCRYPTED_RESPONSE:
             logDebug("parse enc resp = ${rdB}")
             logDebug("decode_8370 = ${decode_8370(rdB)}")
+
+            def dec_8370 = decode_8370(rdB)
+            if(([] != dec_8370) && (dec_8370.size() > (40 + 16)))
+            {
+                def dec_resp = aes_ecb(subBytes(rdB, 40, rdB.size() - (40 + 16)), "dec")   
+                _process_response(dec_resp)
+            }
             break
     }
 }
@@ -271,6 +284,38 @@ def _refresh()
     
     appliance_transparent_send_8370(packet, MSGTYPE_ENCRYPTED_REQUEST)    
 }
+
+def _process_response(data)
+{
+    if(data == 'ERROR'.getBytes())
+    {
+        logDebug("response error")
+        return null
+    }
+    
+    logDebug(data[0xA])
+    
+    logDebug(appliance_response(data))
+    
+    /*
+
+            response = appliance_response(data)
+            self._defer_update = False
+            self._support = True
+            if not self._defer_update:
+                if data[0xa] == 0xc0:
+                    self.update(response)
+                if data[0xa] == 0xa1 or data[0xa] == 0xa0:
+                    '''only update indoor_temperature and outdoor_temperature'''
+                    _LOGGER.debug("Update - Special Respone. {}:{} {}".format(
+                        self.ip, self.port, data[0xa:].hex()))
+                    pass
+                    # self.update_special(response)
+                self._defer_update = False
+        elif not self._keep_last_known_online_state:
+            self._online = False
+    */
+}        
 
 import groovy.transform.Field
 @Field MSGTYPE_HANDSHAKE_REQUEST = 0x0
@@ -491,6 +536,104 @@ def tcp_key(response, key = key)
     state.response_count = 0
     
     return tcp_key
+}
+
+def appliance_response(data)
+{
+    // The response data from the appliance includes a packet header which we don't want
+    data = subBytes(data, 0xA, data.size() - 0xA)
+    
+    def resp = [:]
+    
+    resp += [power_state:           (data[0x01] & 0x1) > 0]
+    resp += [imode_resume:          (data[0x01] & 0x4) > 0]
+    resp += [timer_mode:            (data[0x01] & 0x10) > 0]
+    resp += [appliance_error:       (data[0x01] & 0x80) > 0]
+    resp += [target_temperature:    (data[0x02] & 0xf) + 16.0 + (((data[0x02] & 0x10) > 0) ? 0.5 : 0.0)]
+    resp += [operational_mode:      (data[0x02] & 0xe0) >> 5]
+    resp += [fan_speed:             data[0x03] & 0x7f]
+    
+    
+    def on_timer_value = data[0x04]
+    def on_timer_minutes = data[0x06]
+    resp += [on_timer_status:        ((on_timer_value & 0x80) >> 7) > 0]
+    resp += [on_timer_hour:          (on_timer_value & 0x7c) >> 2]
+    resp += [on_timer_minutes:       (on_timer_value & 0x3) | ((on_timer_minutes & 0xf0) >> 4)]
+    
+    
+    off_timer_value = data[0x05]
+    off_timer_minutes = data[0x06]    
+    resp += [off_timer_status:        ((off_timer_value & 0x80) >> 7) > 0]
+    resp += [off_timer_hour:          (off_timer_value & 0x7c) >> 2]
+    resp += [off_timer_minutes:       (off_timer_value & 0x3) | (off_timer_minutes & 0xf)]
+    
+    
+    resp += [swing_mode:              data[0x07] & 0x0f]
+    resp += [cozy_sleep:              data[0x08] & 0x03]
+    resp += [save:                    (data[0x08] & 0x08) > 0]
+    resp += [low_frequency_fan:       (data[0x08] & 0x10) > 0]
+    resp += [super_fan:               (data[0x08] & 0x20) > 0]
+    
+    resp += [feel_own:                (data[0x08] & 0x80) > 0]
+    resp += [child_sleep_mode:        (data[0x09] & 0x01) > 0]
+    resp += [exchange_air:            (data[0x09] & 0x02) > 0]
+    resp += [dry_clean:               (data[0x09] & 0x04) > 0]
+    resp += [aux_heat:                (data[0x09] & 0x08) > 0]
+    resp += [eco_mode:                (data[0x09] & 0x10) > 0]
+    resp += [clean_up:                (data[0x09] & 0x20) > 0]
+    resp += [temp_unit:               (data[0x09] & 0x80) > 0]
+    resp += [sleep_function:          (data[0x0a] & 0x01) > 0]
+    resp += [turbo_mode:              (data[0x0a] & 0x02) > 0]
+    
+    resp += [catch_cold:              (data[0x0a] & 0x08) > 0]
+    resp += [night_light:             (data[0x0a] & 0x10) > 0]
+    resp += [peak_elec:               (data[0x0a] & 0x20) > 0]
+    resp += [natural_fan:             (data[0x0a] & 0x40) > 0]
+    
+    resp += [indoor_temperature:      "TODO"]
+    resp += [outdoor_temperature:     (data[0x0c] - 50) / 2.0]
+    resp += [humidity:                (data[0x0d] & 0x7f)]
+    
+
+    /*
+    # Byte 0x0b
+    @property
+    def indoor_temperature(self):
+        if self.data[0] == 0xc0:
+            if int((self.data[11] - 50) / 2) < -19 or int((self.data[11] - 50) / 2) > 50:
+                return 0xff
+            else:
+                indoorTempInteger = int((self.data[11] - 50) / 2)
+            indoorTemperatureDot = getBits(self.data, 15, 0, 3)
+            indoorTempDecimal = indoorTemperatureDot * 0.1
+            if self.data[11] > 49:
+                return indoorTempInteger + indoorTempDecimal
+            else:
+                return indoorTempInteger - indoorTempDecimal
+        if self.data[0] == 0xa0 or self.data[0] == 0xa1:
+            if self.data[0] == 0xa0:
+                if (self.data[1] >> 2) - 4 == 0:
+                    indoorTempInteger = -1
+                else:
+                    indoorTempInteger = (self.data[1] >> 2) + 12
+                if (self.data[1] >> 1) & 0x01 == 1:
+                    indoorTempDecimal = 0.5
+                else:
+                    indoorTempDecimal = 0
+            if self.data[0] == 0xa1:
+                if int((self.data[13] - 50) / 2) < -19 or int((self.data[13] - 50) / 2) > 50:
+                    return 0xff
+                else:
+                    indoorTempInteger = int((self.data[13] - 50) / 2)
+                indoorTempDecimal = (self.data[18] & 0x0f) * 0.1
+            if int(self.data[13]) > 49:
+                return indoorTempInteger + indoorTempDecimal
+            else:
+                return indoorTempInteger - indoorTempDecimal
+        return 0xff
+    */
+    
+    return resp
 }
 
 def appliance_transparent_send_8370(data, msgtype=MSGTYPE_ENCRYPTED_REQUEST)
