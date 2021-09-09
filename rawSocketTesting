@@ -25,7 +25,7 @@ preferences
         input name: "port", type: "number", title: "port", required: true, defaultValue: 6444
         input name: "id", type: "number", title: "id", required: true
         input name: "token", type: "text", title: "token", required: true
-        input name: "key", type: "text", title: "key", required: true
+        input name: "key", type: "text", title: "k1", required: true
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
 }
@@ -170,10 +170,10 @@ def trace()
     //logHexBytes(signKey)
     */
     
-    def resp = '8370008E206394E7C00F3EB17C82CA92683769FB59062E16255FEAEBCDA54AFDCC1258F201DF4018119C30025351FEB7943EFDF9786A343312DD624C966D9FBDC486410462EBD498060E458EFCCAC673AB32298ED4BB2D0B63D5BDA6FD12A9B8433B7B9A2B346FEC2A33AB58937DA36A49E6FA3ACA2B175FE26A486E3B9902ECF3BD1350092231F02C8A895FDF2A300C95CBD616B9F8'
+    def resp = '8370004020018948F4A99F4155DE4BFF118EAA4911A792199A0B1AD5CCCE4FB94202C2F1CB51471B59B1C1AFE5E14496A7DD1AEC476C07B73A44EFD00158C809433FFFC6E13E4F6C'
     parse(resp)
-    //_process_response(data1)
-    
+    resp = '8370008E206348CEA47E85D54CAEB9EB00C04EAF5BC35E9878676194919D52623F938C45BAF9F4B3FB891D4FFA241EB6023E389CDA4C46733C3F818CEC7BC789C8927B8BF5F92B999C9B97B2238403139C750C3328DFD9A3845E7FB6414DB87DB8C49DC8FED09057F0F62A4B3B57723ED23D4B191AAE88779458D7F458B37A81E859219CA82B562CD6A4A3B69D61ED39965FCCFCEE52'
+    parse(resp) 
 }
 
 def logHexBytes(data)
@@ -217,7 +217,8 @@ def parse(String message)
     switch(getMsgType(rdB))
     {
         case MSGTYPE_HANDSHAKE_RESPONSE:
-            logDebug("tcp_key: ${tcp_key(rdB, key)}")
+            def tcp_key = tcp_key(rdB, key)
+            if(tcp_key) { setTcpKey(tcp_key) }
             break
         
         case MSGTYPE_ENCRYPTED_RESPONSE:
@@ -227,7 +228,7 @@ def parse(String message)
             def dec_8370 = decode_8370(rdB)
             if(([] != dec_8370) && (dec_8370.size() > (40 + 16)))
             {
-                def dec_resp = aes_ecb(subBytes(rdB, 40, rdB.size() - (40 + 16)), "dec")   
+                def dec_resp = aes_ecb(subBytes(dec_8370, 40, dec_8370.size() - (40 + 16)), "dec")   
                 _process_response(dec_resp)
             }
             break
@@ -293,29 +294,21 @@ def _process_response(data)
         return null
     }
     
-    logDebug(data[0xA])
-    
-    logDebug(appliance_response(data))
-    
-    /*
+    if(0xC0 == i8Tou8(data[0xA]))
+    {
+        logDebug(appliance_response(data))
+    }
+}
 
-            response = appliance_response(data)
-            self._defer_update = False
-            self._support = True
-            if not self._defer_update:
-                if data[0xa] == 0xc0:
-                    self.update(response)
-                if data[0xa] == 0xa1 or data[0xa] == 0xa0:
-                    '''only update indoor_temperature and outdoor_temperature'''
-                    _LOGGER.debug("Update - Special Respone. {}:{} {}".format(
-                        self.ip, self.port, data[0xa:].hex()))
-                    pass
-                    # self.update_special(response)
-                self._defer_update = False
-        elif not self._keep_last_known_online_state:
-            self._online = False
-    */
-}        
+def setTcpKey(key)
+{
+    updateDataValue('tcp_key', key)
+}
+
+def getTcpKey()
+{
+    getDataValue('tcp_key')
+}
 
 import groovy.transform.Field
 @Field MSGTYPE_HANDSHAKE_REQUEST = 0x0
@@ -376,7 +369,7 @@ def encode_8370(data, msgtype)
         def sign = digest.digest(appendByteArr(header, data))
         
         // if tcp_key isn't available, just use a random key
-        data = aes_cbc(data, "enc", state.tcp_key ?: '4D67055D53288313335D65FB2CBA3DDB04001F8AF6880CBDB5BC45DA67EC8A35')
+        data = aes_cbc(data, "enc", getTcpKey() ?: '4D67055D53288313335D65FB2CBA3DDB04001F8AF6880CBDB5BC45DA67EC8A35')
         
         data = appendByteArr(data, sign)
     }
@@ -419,7 +412,7 @@ def decode_8370(data)
         data = subBytes(data, 0, data.size() - 32)
         
         // if tcp_key isn't available, just use a random key
-        data = aes_cbc(data, "dec", state.tcp_key ?: '4D67055D53288313335D65FB2CBA3DDB04001F8AF6880CBDB5BC45DA67EC8A35')
+        data = aes_cbc(data, "dec", getTcpKey() ?: '4D67055D53288313335D65FB2CBA3DDB04001F8AF6880CBDB5BC45DA67EC8A35')
         
         MessageDigest digest = MessageDigest.getInstance("SHA-256")
         def check = digest.digest(appendByteArr(header, data))
@@ -528,9 +521,8 @@ def tcp_key(response, key = key)
         // tcp_key = strxor(plain, key)
         plain[it] = plain[it] ^ keyBytes[it]
     }
-
+    
     def tcp_key = hubitat.helper.HexUtils.byteArrayToHexString(plain)
-    state.tcp_key = tcp_key
     
     state.request_count = 0
     state.response_count = 0
@@ -591,7 +583,7 @@ def appliance_response(data)
     resp += [natural_fan:             (data[0x0a] & 0x40) > 0]
     
     resp += [indoor_temperature:      "TODO"]
-    resp += [outdoor_temperature:     (data[0x0c] - 50) / 2.0]
+    resp += [outdoor_temperature:     ((data[0x0c] - 50) / 2.0).toFloat()]
     resp += [humidity:                (data[0x0d] & 0x7f)]
     
 
