@@ -40,140 +40,23 @@ def logDebug(msg)
 
 def trace()
 {
-    def intKey = '434a209a5ce141c3b726de067835d7f0'
-    byte[] intData = (0..127).collect{it}
+    logDebug("starting test")
     
-    logDebug(intToBytes(id, 8, "little"))
+    clearAllWaits()
     
-    /*
-    def log = true       
-    logDebug("starting 2 byte test little")
-    0.upto(0xffff)
-    {
-        if(it != bytesToInt(intToBytes(it, 2, "little"), "little"))
-        {
-            if(log)
-            {
-                logDebug("error: ${it}")
-                log = false
-            }
-        }
-    }
-    logDebug("done with 2 byte test little")
-
-    log = true    
-    logDebug("starting 2 byte test big")
-    0.upto(0xffff)
-    {
-        if(it != bytesToInt(intToBytes(it, 2, "big"), "big"))
-        {
-            if(log)
-            {
-                logDebug("error: ${it}")
-                log = false
-            }
-        }
-    }
-    logDebug("done with 2 byte test big")
-    */
-
-    /*
-    logDebug("starting 8 byte test")
-    for(int i = 0; i <= 0xffffffffffffffff; i + 0xF00F0FF0)
-    {
-        if(i != bytesToInt(intToBytes(i, 8, "little"), "little"))
-        {
-            logDebug("error: {i}")
-        }
-    }
-    logDebug("done with 8 byte test")
-    */
+    syncWait([waitSetter: "auth", timeoutSec: 4])
+    runIn(1, "clearWait", [data: [waitSetter: "auth"]])
+    runWithCheckWait([methodName: "_authenticate"])
     
-    /*
+    syncWait([waitSetter: "refresh", timeoutSec: 4])
+    runIn(1, "clearWait", [data: [waitSetter: "refresh"]])
+    runWithCheckWait([methodName: "_refresh"])
     
-    def enc = aes_cbc(intData, "enc", intKey)
-    def dec = aes_cbc(enc, "dec", intKey)    
-    logDebug("testing intData == dec: ${intData == dec}")    
+    syncWait([waitSetter: "apply", timeoutSec: 4])
+    runIn(1, "clearWait", [data: [waitSetter: "apply"]])
+    runWithCheckWait([methodName: "_apply"])
     
-    
-    def enc2 = aes_ecb(intData, "enc")
-    def dec2 = aes_ecb(enc2, "dec")
-    logDebug("testing intData == dec2: ${intData == dec2}")
-    
-    
-    def tokenB = hubitat.helper.HexUtils.hexStringToByteArray(token ?: 'd765eba84382ab05da02c036d080b5bac25eb7653d3f99a0c352d6a1ef526aaeb32fd4eddc734802327d8e5b63dc7b3539ef8d3b483fa69fe13b2a5a3a744a54')
-    
-    def enc8370 = encode_8370(tokenB, MSGTYPE_HANDSHAKE_REQUEST)
-    logDebug(enc8370.collect{it & 0xFF})
-    def dec8370 = decode_8370(enc8370)
-    logDebug("tokenB == dec8370 (non-enc): = ${tokenB == dec8370}")
-    
-    enc8370 = encode_8370(tokenB, MSGTYPE_ENCRYPTED_REQUEST)
-    dec8370 = decode_8370(enc8370)    
-    logDebug("tokenB == dec8370 (enc): = ${tokenB == dec8370}")
-    */
-    
-    
-
-    /*
-    intData = (0..63).collect{it}
-    intKey = 'ed39553af1748a24f88e8c8db815dc5a'
-    MessageDigest digest = MessageDigest.getInstance("SHA-256")
-    def sign = digest.digest(intData)    
-    def eBytes = aes_cbc(intData, "enc", intKey)
-    
-    tcp_key(appendByteArr(eBytes, sign), intKey)
-    */
-    
-    
-    /*
-    byte[] resp = [-125, 112, 0, 64, 32, 1, -119, 72, -70, 107, -61, 12, -63, 1, -90, 19, 107, -90, -56, -112, 22, -127, 5, 119, 66, 97, 112, 39, -80, -41, -52, -70, -28, -94, -118, 5, -85, -128, -119, -40, 47, -107, 55, -55, -11, -60, 36, -19, -64, -32, -10, 94, 114, 107, -7, -63, -41, 110, -41, 64, 111, 41, -118, -107, 121, 64, 57, 77, 71, -64, 121, 96]
-    logDebug(getMsgType(resp))
-    logDebug(tcp_key(resp, key))
-    */
-    
-    //byte[] req = request_status_command()    
-    //logDebug(hubitat.helper.HexUtils.byteArrayToHexString(packet_builder(id, req)))
-    
-
-    /*
-    parse('837000402001894897218CF1C79F143381578B67AC6420413CC363855D1E16A3E992337E609F8D72388862B10FA11851651EB2D502C73530AFCCAE6818F8BF7C6340C3426D5176AD')
-    parse('83700040200189484552524F52')
-    */
-    
-    /*
-    def req = '8370008E2066D531645D3E0EB420E989EB5847B8A445F98AC9F81DEA7D1ED6FD81E736FCF9785A8059D1EEF3052EDEB5AD5E55CA5E073931E8E304CD697E0639208A92CF468CA0F2DDA25E012FCFCF57CE159B4EF151AAA117BE2EFD0A9A7048EA65FC0F51F800510DC5DC1C2679A4E75DBB88C220351AB928F0499D2D0A4ADC725D6FDF3E340396A86FBBF422BCC5787BACB75C456E'
-    logDebug(decode_8370(hubitat.helper.HexUtils.hexStringToByteArray(req)))
-    */
-    
-    /*
-    def refreshPacket = [90, 90, 1, 17, 104, 0, 32, 0, 0, 0, 0, 0, 32, 33, 9, 8, 20, 69, 72, 5, -104, 109, 3, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 122, -24, -106, 26, -62, -53, -65, -99, 127, -19, -126, -115, -67, 18, -127, -99, -115, -59, 87, -60, 98, 97, -27, 110, -38, -124, -37, -10, -2, 89, -12, 58, 60, 12, -90, -118, -34, -127, 0, -72, 104, 82, 57, -111, 85, -115, -113, 67, -44, 29, -116, -39, -113, 0, -78, 4, -23, -128, 9, -104, -20, -8, 66, 126]
-    logDebug(id.toLong() == bytesToInt(subBytes(refreshPacket, 20, 8), "little"))
-    logDebug(id.toLong() == bytesToInt(intToBytes(id.toLong(), 8, "little"), "little"))
-    
-    logHexBytes(subBytes(refreshPacket, 0, 40))
-    
-    def refreshPacket2 = [90, 90, 1, 17, 104, 0, 32, 0, 0, 0, 0, 0, 32, 33, 9, 8, 19, 54, 73, 9, -104, 109, 3, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 122, -24, -106, 26, -62, -53, -65, -99, 127, -19, -126, -115, -67, 18, -127, -99, 89, -84, -5, 51, -122, -125, 124, -29, 118, -64, -29, -106, 99, -32, -14, -5, -26, 48, 116, 81, -92, 70, 122, -17, -57, 28, 23, -115, -61, -16, 56, 125, -44, 29, -116, -39, -113, 0, -78, 4, -23, -128, 9, -104, -20, -8, 66, 126]
-    logDebug(id.toLong() == bytesToInt(subBytes(refreshPacket2, 20, 8), "little"))
-    
-    enc8370 = encode_8370(refreshPacket2, MSGTYPE_ENCRYPTED_REQUEST)
-    dec8370 = decode_8370(enc8370)    
-    logDebug("refreshPacket2 == dec8370 (enc): = ${refreshPacket2 == dec8370}")
-    */
-    
-    //logHexBytes(packet_builder(id.toLong(), null))
-    
-    /*
-    def val = hubitat.helper.HexUtils.hexStringToByteArray('5a5a01116800200000000000362d0c0409091514986d0300001c00000000000000000000000000006b000a76e27eed2c3647e57d8602df8b0d913a99ac66bbc2c031875985fea665a6bd5e96ea81a1e4d966d532e6557aee2341f21c6e94d2a1bef1a8ac6c32ffcd')
-    logHexBytes(md5(appendByteArr(val, signKey)))
-    
-    //logHexBytes(signKey)
-    */
-    
-    def resp = '8370004020018948F4A99F4155DE4BFF118EAA4911A792199A0B1AD5CCCE4FB94202C2F1CB51471B59B1C1AFE5E14496A7DD1AEC476C07B73A44EFD00158C809433FFFC6E13E4F6C'
-    parse(resp)
-    resp = '8370008E206348CEA47E85D54CAEB9EB00C04EAF5BC35E9878676194919D52623F938C45BAF9F4B3FB891D4FFA241EB6023E389CDA4C46733C3F818CEC7BC789C8927B8BF5F92B999C9B97B2238403139C750C3328DFD9A3845E7FB6414DB87DB8C49DC8FED09057F0F62A4B3B57723ED23D4B191AAE88779458D7F458B37A81E859219CA82B562CD6A4A3B69D61ED39965FCCFCEE52'
-    parse(resp)
+    logDebug("test complete")
 }
 
 def logHexBytes(data)
@@ -261,8 +144,6 @@ def closeSocket()
 
 def _writeBytes(byte[] bytes)
 {
-    logDebug("writeBytes: ${bytes.collect{it & 0xFF}}")    
-    
     def wrStr = hubitat.helper.HexUtils.byteArrayToHexString(bytes)
     logDebug("writeBytes: ${wrStr}")
     
@@ -273,7 +154,8 @@ def _authenticate()
 {
     def tokenBytes = hubitat.helper.HexUtils.hexStringToByteArray(token)
     
-    logDebug("tokenBytes = ${tokenBytes}")
+    logDebug("_authenticate packet follows:")
+    
     request = encode_8370(tokenBytes, MSGTYPE_HANDSHAKE_REQUEST)
     _writeBytes(request)
 }
@@ -281,7 +163,7 @@ def _authenticate()
 def _refresh()
 {
     def packet = packet_builder(id.toLong(), request_status_command())
-    logDebug("_refresh packet = ${packet}")
+    logDebug("_refresh packet follows:")
     
     appliance_transparent_send_8370(packet, MSGTYPE_ENCRYPTED_REQUEST)
 }
@@ -325,7 +207,7 @@ def _apply()
         ]
     
     def packet = packet_builder(id.toLong(), set_command(cmdParams))
-    logDebug("_apply packet = ${packet}")
+    logDebug("_apply packet follows:")
     
     appliance_transparent_send_8370(packet, MSGTYPE_ENCRYPTED_REQUEST)    
 }
@@ -1087,4 +969,72 @@ def checksum(data)
 def encode(byte[] data)
 {
     data.collect { it & 0xFF }
+}
+
+
+//////////////////////////////////////
+// volatile state and sync code below
+//////////////////////////////////////
+
+@Field static volatileState = [:].asSynchronized()
+
+def setVolatileState(name, value)
+{
+    def tempState = volatileState[device.getDeviceNetworkId()] ?: [:]
+    tempState.putAt(name, value)
+    
+    volatileState.putAt(device.getDeviceNetworkId(), tempState)
+    
+    return volatileState
+}
+
+def getVolatileState(name)
+{
+    return volatileState.getAt(device.getDeviceNetworkId())?.getAt(name)  
+}
+
+def syncWait(data)
+{
+    // set up for checking 5x per second
+    setVolatileState("syncWaitDetails", [waitSetter: data.waitSetter, retryCount: data.timeoutSec * 5])
+}
+
+def runWithCheckWait(data)
+{
+    def wtDetails = getVolatileState("syncWaitDetails")
+    
+    // check every 200 ms whether the wait was cleared...
+    if(wtDetails?.waitSetter == "")
+    {
+        runInMillis(1, data.methodName, [data: data.methodParams])
+        return
+    }
+    
+    // ...or throw an exception if we ran out of tries
+    if(wtDetails?.retryCount == 0)
+    {
+        throw new Exception("wait timed out")
+    }
+    
+    wtDetails.putAt("retryCount", wtDetails.getAt("retryCount") - 1)
+    
+    setVolatileState("syncWaitDetails", wtDetails)
+    
+    pauseExecution(200)
+    runWithCheckWait(data)
+}
+
+def clearWait(data)
+{
+    def wtDetails = getVolatileState("syncWaitDetails")
+    
+    if(data.waitSetter == wtDetails?.getAt("waitSetter"))
+    {
+        syncWait([waitSetter: "", timeoutSec: 0])
+    }
+}
+
+def clearAllWaits()
+{
+    syncWait([waitSetter: "", timeoutSec: 0])
 }
