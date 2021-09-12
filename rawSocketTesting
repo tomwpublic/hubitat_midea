@@ -4,8 +4,10 @@
 
 metadata
 {
-    definition(name: "raw socket testing", namespace: "tomw", author: "tomw", importUrl: "")
+    definition(name: "Midea AC local controller", namespace: "tomw", author: "tomw", importUrl: "")
     {
+        capability "Refresh"
+        
         command "openSocket"
         command "closeSocket"
         
@@ -28,6 +30,15 @@ preferences
         input name: "key", type: "text", title: "k1", required: true
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
+}
+
+def refresh()
+{
+    syncWait([waitSetter: "auth", timeoutSec: 4])
+    runWithCheckWait([methodName: "_authenticate"])
+    
+    syncWait([waitSetter: "refresh", timeoutSec: 4])
+    runWithCheckWait([methodName: "_refresh"])
 }
 
 def logDebug(msg) 
@@ -101,7 +112,13 @@ def parse(String message)
     {
         case MSGTYPE_HANDSHAKE_RESPONSE:
             def tcp_key = tcp_key(rdB, key)
-            if(tcp_key) { setTcpKey(tcp_key) }
+            if(tcp_key)
+            {
+                setTcpKey(tcp_key)
+                
+                // clear this syncWait
+                clearWait([waitSetter: "auth"])
+            }
             break
         
         case MSGTYPE_ENCRYPTED_RESPONSE:
@@ -223,6 +240,9 @@ def _process_response(data)
     if(0xC0 == i8Tou8(data[0xA]))
     {
         def resp = appliance_response(data)
+        
+        // clear this syncWait, likely set by refresh()
+        clearWait([waitSetter: "refresh"])
         
         logDebug("appliance_response: ${resp}")
         state.state = resp
@@ -679,10 +699,6 @@ def base_command()
         // Message ID
         (state.request_count ?: 1) & 0xFF
     ]
-    
-    //self.data[-1] = datetime.datetime.now().second
-    //byte[] secs = 0//intToBytes((new Date().getTime() / 1000).toInteger(), 1, "little")
-    //req = appendByteArr(req, secs)
     
     return req
 }
