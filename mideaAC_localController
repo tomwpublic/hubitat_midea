@@ -35,10 +35,12 @@ preferences
 def refresh()
 {
     syncWait([waitSetter: "auth", timeoutSec: 4])
-    runWithCheckWait([methodName: "_authenticate"])
+    _authenticate()
+    doWait()
     
     syncWait([waitSetter: "refresh", timeoutSec: 4])
-    runWithCheckWait([methodName: "_refresh"])
+    _refresh()
+    doWait()
 }
 
 def logDebug(msg) 
@@ -57,15 +59,18 @@ def trace()
     
     syncWait([waitSetter: "auth", timeoutSec: 4])
     runIn(1, "clearWait", [data: [waitSetter: "auth"]])
-    runWithCheckWait([methodName: "_authenticate"])
+    _authenticate()
+    doWait()
     
     syncWait([waitSetter: "refresh", timeoutSec: 4])
     runIn(1, "clearWait", [data: [waitSetter: "refresh"]])
-    runWithCheckWait([methodName: "_refresh"])
+    _refresh()
+    doWait()
     
     syncWait([waitSetter: "apply", timeoutSec: 4])
     runIn(1, "clearWait", [data: [waitSetter: "apply"]])
-    runWithCheckWait([methodName: "_apply"])
+    _apply()
+    doWait()
     
     logDebug("test complete")
 }
@@ -1015,14 +1020,13 @@ def syncWait(data)
     setVolatileState("syncWaitDetails", [waitSetter: data.waitSetter, retryCount: data.timeoutSec * 5])
 }
 
-def runWithCheckWait(data)
+def doWait()
 {
     def wtDetails = getVolatileState("syncWaitDetails")
     
     // check every 200 ms whether the wait was cleared...
     if(wtDetails?.waitSetter == "")
     {
-        runInMillis(1, data.methodName, [data: data.methodParams])
         return
     }
     
@@ -1037,7 +1041,7 @@ def runWithCheckWait(data)
     setVolatileState("syncWaitDetails", wtDetails)
     
     pauseExecution(200)
-    runWithCheckWait(data)
+    doWait()
 }
 
 def clearWait(data)
