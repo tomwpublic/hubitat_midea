@@ -331,12 +331,12 @@ def setSchedule(JSON_OBJECT)
 
 def setThermostatFanMode(fanmode)
 {
-    logDebug(fanmode == "on")
+    log.debug "setThermostatFanMode() not yet supported"
 }
 
 def setThermostatMode(thermostatmode)
 {
-    logDebug(thermostatmode == "auto")
+    log.debug "setThermostatMode() not yet supported"
 }
 
 def _authenticate()
@@ -829,7 +829,7 @@ def set_command(Map cmdParams)
     data[0x0c] &= ~ 0x0f
     data[0x0c] |= ((cmdParams.target_temperature?.toInteger()) & 0xf)
     // temperature_dot5.setter
-    if((Math.round(cmdParams.temperature_celsius * 2)?.toInteger() % 2) != 0)
+    if((Math.round(cmdParams.target_temperature * 2)?.toInteger() % 2) != 0)
     {
         data[0x0c] |= 0x10
     }
