@@ -228,6 +228,8 @@ def _refresh()
 
 def _apply(cmdParams)
 {
+    logDebug("refreshed state: ${getVolatileState("state")}")
+    
     def packet = packet_builder(id.toLong(), set_command(cmdParams))
     logDebug("_apply packet follows:")
     
@@ -250,7 +252,7 @@ def _process_response(data)
         logDebug("appliance_response: ${resp}")
         
         _updateAttributes(resp)
-        state.state = resp
+        setVolatileState("state", resp)
         
         // clear this syncWait, possibly set by refresh()
         clearWait([waitSetter: "refresh"])
