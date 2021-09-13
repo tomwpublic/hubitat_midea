@@ -69,6 +69,19 @@ def refresh()
     return true
 }
 
+def apply(cmdParams)
+{
+    syncWait([waitSetter: "auth", timeoutSec: 4])
+    _authenticate()
+    doWait()
+    
+    syncWait([waitSetter: "apply", timeoutSec: 4])
+    _apply(cmdParams)
+    doWait()
+    
+    return true
+}
+
 def logDebug(msg) 
 {
     if (logEnable)
@@ -83,7 +96,7 @@ def trace()
         [
             feedback_enabled: true,
             power_state: true,
-            temperature_celsius: 19.5,
+            target_temperature: 19.5,
             operational_mode: 1,
             fan_speed: 102,
             swing_mode: 0x0,
@@ -137,7 +150,7 @@ def parse(String message)
     
     if(rdB.size() < 13)
     {
-        logDebug("response too short")
+        logDebug("ignoring short response")
         return
     }
     
@@ -145,7 +158,7 @@ def parse(String message)
     {
         // just catch 'ERROR'
         rdB = subBytes(rdB, 8, 5)
-        logDebug("rdB = ${new String(rdB)}")
+        //logDebug("rdB = ${new String(rdB)}")
         return
     }
     
@@ -163,8 +176,8 @@ def parse(String message)
             break
         
         case MSGTYPE_ENCRYPTED_RESPONSE:
-            logDebug("parse enc resp = ${rdB}")
-            logDebug("decode_8370 = ${decode_8370(rdB)}")
+            //logDebug("parse enc resp = ${rdB}")
+            //logDebug("decode_8370 = ${decode_8370(rdB)}")
 
             def dec_8370 = decode_8370(rdB)
             if(([] != dec_8370) && (dec_8370.size() > (40 + 16)))
@@ -208,6 +221,124 @@ def _writeBytes(byte[] bytes)
     interfaces.rawSocket.sendMessage(wrStr)  
 }
 
+def updateSettingParams(paramsIn)
+{
+    // do a refresh first...
+    refresh()
+    
+    // ...then tweak the settings that we need
+    def paramsOut = getVolatileState("state")
+    
+    paramsIn.each()
+    {
+        paramsOut[it.key] = it.value
+    }
+    
+    // always set these -- they won't be in the response but need to be in the command
+    paramsOut['fahrenheit_enabled'] = false
+    paramsOut['screen_display'] = true
+    paramsOut['feedback_enabled'] = true    
+    
+    return paramsOut
+}
+
+def auto()
+{
+    def params = updateSettingParams([operational_mode: translateMode("auto", "string")])
+    if(params)
+    {
+        apply(params)
+    }
+}
+
+def cool()
+{
+    def params = updateSettingParams([operational_mode: translateMode("cool", "string")])
+    if(params)
+    {
+        apply(params)
+    }
+}
+
+def emergencyHeat()
+{
+    log.warn "emergencyHeat() not supported by this device"
+}
+
+def fanAuto()
+{
+    def params = updateSettingParams([fan_speed: translateFanMode("auto", "string")])
+    if(params)
+    {
+        apply(params)
+    }    
+}
+
+def fanCirculate()
+{
+    def params = updateSettingParams([fan_speed: translateFanMode("medium", "string")])
+    if(params)
+    {
+        apply(params)
+    }    
+}
+
+def fanOn()
+{
+    def params = updateSettingParams([fan_speed: translateFanMode("high", "string")])
+    if(params)
+    {
+        apply(params)
+    }    
+}
+
+def heat()
+{
+    def params = updateSettingParams([operational_mode: translateMode("heat", "string")])
+    if(params)
+    {
+        apply(params)
+    }
+}
+
+def off()
+{
+    def params = updateSettingParams([power_state: false])
+    if(params)
+    {
+        apply(params)
+    }
+}
+
+def setCoolingSetpoint(temperature)
+{
+    def params = updateSettingParams([target_temperature: temperature])
+    if(params)
+    {
+        apply(params)
+    }
+}
+
+def setHeatingSetpoint(temperature)
+{
+    setCoolingSetpoint(temperature)
+}
+
+def setSchedule(JSON_OBJECT)
+{
+    log.warn "setSchedule() not supported by this device"
+}
+
+def setThermostatFanMode(fanmode)
+{
+    logDebug(fanmode == "on")
+}
+
+def setThermostatMode(thermostatmode)
+{
+    logDebug(thermostatmode == "auto")
+}
+
 def _authenticate()
 {
     def tokenBytes = hubitat.helper.HexUtils.hexStringToByteArray(token)
@@ -228,8 +359,6 @@ def _refresh()
 
 def _apply(cmdParams)
 {
-    logDebug("refreshed state: ${getVolatileState("state")}")
-    
     def packet = packet_builder(id.toLong(), set_command(cmdParams))
     logDebug("_apply packet follows:")
     
@@ -242,7 +371,7 @@ def _process_response(data)
     
     if(data == 'ERROR'.getBytes())
     {
-        logDebug("response error")
+        logDebug("response ERROR")
         return null
     }
     
@@ -285,12 +414,6 @@ def _updateAttributes(resp)
     {
         sendEvent(it)
     }  
-    
-    
-    /*
-    supportedThermostatFanModes - JSON_OBJECT
-    supportedThermostatModes - JSON_OBJECT
-    */
 }
 
 def translateMode(value, inputType)
@@ -704,7 +827,7 @@ def set_command(Map cmdParams)
     
     // target_temperature.setter
     data[0x0c] &= ~ 0x0f
-    data[0x0c] |= ((cmdParams.temperature_celsius?.toInteger()) & 0xf)
+    data[0x0c] |= ((cmdParams.target_temperature?.toInteger()) & 0xf)
     // temperature_dot5.setter
     if((Math.round(cmdParams.temperature_celsius * 2)?.toInteger() % 2) != 0)
     {
