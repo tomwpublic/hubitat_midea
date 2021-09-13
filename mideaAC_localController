@@ -6,7 +6,11 @@ metadata
 {
     definition(name: "Midea AC local controller", namespace: "tomw", author: "tomw", importUrl: "")
     {
+        attribute "outdoorTemperature", "number"
+        
+        capability "Initialize"
         capability "Refresh"
+        capability "Thermostat"
         
         command "openSocket"
         command "closeSocket"
@@ -32,6 +36,30 @@ preferences
     }
 }
 
+def updated()
+{
+    configure()
+}
+
+def configure()
+{
+    def fanModes = [auto: 102, full: 100, high: 80, medium: 60, low: 40, silent: 20]
+    def fanModesJ = new groovy.json.JsonOutput().toJson(fanModes)
+    sendEvent(name: "supportedThermostatFanModes", value: fanModesJ)
+    
+    def thermoModes = [auto: 1, cool: 2, dry: 3, heat: 4, fan_only: 5]
+    def thermoModesJ = new groovy.json.JsonOutput().toJson(thermoModes)
+    sendEvent(name: "supportedThermostatModes", value: thermoModesJ)    
+    
+    initialize()
+    // refresh()
+}
+
+def initialize()
+{
+    //TODO open socket, etc
+}
+
 def refresh()
 {
     syncWait([waitSetter: "auth", timeoutSec: 4])
@@ -53,29 +81,11 @@ def logDebug(msg)
 
 def trace()
 {
-    logDebug("starting test")
+    logDebug(translateMode(translateMode("cool", "string"), "integer"))
+    logDebug(translateFanMode(translateFanMode("full", "string"), "integer"))
     
-    clearAllWaits()
-    
-    syncWait([waitSetter: "auth", timeoutSec: 4])
-    runIn(1, "clearWait", [data: [waitSetter: "auth"]])
-    _authenticate()
-    doWait()
-    
-    syncWait([waitSetter: "refresh", timeoutSec: 4])
-    runIn(1, "clearWait", [data: [waitSetter: "refresh"]])
-    _refresh()
-    doWait()
-    
-    syncWait([waitSetter: "apply", timeoutSec: 4])
-    runIn(1, "clearWait", [data: [waitSetter: "apply"]])
-    _apply()
-    doWait()
-    
-    logDebug("test complete")
-    
-    setTcpKey('0D6E9A1B9A21196C7A1076862137ACA2C92F8AF299C798C7BAA253A039429C4E')
-    logDebug(getTcpKey())
+    def resp = [power_state:true, imode_resume:false, timer_mode:false, appliance_error:false, target_temperature:19.5, operational_mode:1, fan_speed:102, on_timer_status:false, on_timer_hour:31, on_timer_minutes:3, off_timer_status:false, off_timer_hour:31, off_timer_minutes:3, swing_mode:0, cozy_sleep:0, save:false, low_frequency_fan:false, super_fan:false, feel_own:false, child_sleep_mode:false, exchange_air:false, dry_clean:false, aux_heat:false, eco_mode:false, clean_up:false, temp_unit:false, sleep_function:false, turbo_mode:false, catch_cold:false, night_light:false, peak_elec:false, natural_fan:false, outdoor_temperature:16.0, humidity:0, indoor_temperature:20.0]
+    _updateAttributes(resp)
 }
 
 def logHexBytes(data)
@@ -239,6 +249,8 @@ def _apply()
 
 def _process_response(data)
 {
+    def resp
+    
     if(data == 'ERROR'.getBytes())
     {
         logDebug("response error")
@@ -247,13 +259,111 @@ def _process_response(data)
     
     if(0xC0 == i8Tou8(data[0xA]))
     {
-        def resp = appliance_response(data)
+        resp = appliance_response(data)
         
         // clear this syncWait, likely set by refresh()
         clearWait([waitSetter: "refresh"])
         
         logDebug("appliance_response: ${resp}")
+        
+        _updateAttributes(resp)
         state.state = resp
+    }
+    
+    return resp
+}
+
+def _updateAttributes(resp)
+{
+    if(!resp)
+    {
+        return
+    }
+    
+    def events = [[:]]
+    
+    events +=    [name: "coolingSetpoint",             value: resp.target_temperature]
+    events +=    [name: "heatingSetpoint",             value: resp.target_temperature]
+    events +=    [name: "temperature",                 value: resp.indoor_temperature]
+    events +=    [name: "thermostatFanMode",           value: translateFanMode(resp.fan_speed?.toInteger(), "integer")]
+    events +=    [name: "thermostatMode",              value: translateMode(resp.operational_mode?.toInteger(), "integer")]
+    events +=    [name: "thermostatOperatingState",    value: resp.power_state ? "on" : "off" ]
+    events +=    [name: "thermostatSetpoint",          value: resp.target_temperature]
+    events +=    [name: "outdoorTemperature",          value: resp.outdoor_temperature]
+    
+    events.each
+    {
+        sendEvent(it)
+    }  
+    
+    
+    /*
+    supportedThermostatFanModes - JSON_OBJECT
+    supportedThermostatModes - JSON_OBJECT
+    */
+}
+
+def translateMode(value, inputType)
+{
+    switch(inputType)
+    {
+        case "integer":
+            switch(value.toInteger())
+            {
+                case 1: return "auto"
+                case 2: return "cool"
+                case 3: return "dry"
+                case 4: return "heat"
+                case 5: return "fan_only"
+                default: return "unknown"
+            }
+
+        case "string":
+            switch(value)
+            {
+                case "auto": return 1
+                case "cool": return 2
+                case "dry":  return 3
+                case "heat": return 4
+                case "fan_only": return 5
+                default: return
+            }
+        
+        default:
+            return
+    }
+}
+
+def translateFanMode(value, inputType)
+{
+    switch(inputType)
+    {
+        case "integer":
+            switch(value.toInteger())
+            {
+                case 102: return "auto"
+                case 100: return "full"
+                case 80: return "high"
+                case 60: return "medium"
+                case 40: return "low"
+                case 20: return "silent"
+                default: return "unknown"
+            }
+
+        case "string":
+            switch(value)
+            {
+                case "auto": return 102
+                case "full": return 100
+                case "high": return 80
+                case "medium": return 60
+                case "low": return 40
+                case "silent": return 20
+                default: return
+            }
+        
+        default:
+            return
     }
 }
 
