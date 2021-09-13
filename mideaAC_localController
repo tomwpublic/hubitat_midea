@@ -73,6 +73,9 @@ def trace()
     doWait()
     
     logDebug("test complete")
+    
+    setTcpKey('0D6E9A1B9A21196C7A1076862137ACA2C92F8AF299C798C7BAA253A039429C4E')
+    logDebug(getTcpKey())
 }
 
 def logHexBytes(data)
@@ -256,12 +259,12 @@ def _process_response(data)
 
 def setTcpKey(key)
 {
-    updateDataValue('tcp_key', key)
+    setVolatileState('tcp_key', key)
 }
 
 def getTcpKey()
 {
-    getDataValue('tcp_key')
+    getVolatileState('tcp_key')
 }
 
 import groovy.transform.Field
