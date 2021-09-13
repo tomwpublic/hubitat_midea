@@ -15,10 +15,6 @@ metadata
         command "openSocket"
         command "closeSocket"
         
-        command "_authenticate"
-        command "_refresh"
-        command "_apply"
-        
         command "trace"
     }
 }
@@ -69,6 +65,8 @@ def refresh()
     syncWait([waitSetter: "refresh", timeoutSec: 4])
     _refresh()
     doWait()
+    
+    return true
 }
 
 def logDebug(msg) 
@@ -81,11 +79,36 @@ def logDebug(msg)
 
 def trace()
 {
-    logDebug(translateMode(translateMode("cool", "string"), "integer"))
-    logDebug(translateFanMode(translateFanMode("full", "string"), "integer"))
+    def cmdParams =
+        [
+            feedback_enabled: true,
+            power_state: true,
+            temperature_celsius: 19.5,
+            operational_mode: 1,
+            fan_speed: 102,
+            swing_mode: 0x0,
+            turbo_mode: false,
+            screen_display: true,
+            fahrenheit_enabled: false
+        ]
     
+    syncWait([waitSetter: "auth", timeoutSec: 4])
+    _authenticate()
+    doWait()
+    
+    syncWait([waitSetter: "refresh", timeoutSec: 4])
+    _refresh()
+    doWait()
+    
+    syncWait([waitSetter: "apply", timeoutSec: 4])
+    _apply(cmdParams)
+    doWait()
+    
+    
+    /*
     def resp = [power_state:true, imode_resume:false, timer_mode:false, appliance_error:false, target_temperature:19.5, operational_mode:1, fan_speed:102, on_timer_status:false, on_timer_hour:31, on_timer_minutes:3, off_timer_status:false, off_timer_hour:31, off_timer_minutes:3, swing_mode:0, cozy_sleep:0, save:false, low_frequency_fan:false, super_fan:false, feel_own:false, child_sleep_mode:false, exchange_air:false, dry_clean:false, aux_heat:false, eco_mode:false, clean_up:false, temp_unit:false, sleep_function:false, turbo_mode:false, catch_cold:false, night_light:false, peak_elec:false, natural_fan:false, outdoor_temperature:16.0, humidity:0, indoor_temperature:20.0]
     _updateAttributes(resp)
+    */
 }
 
 def logHexBytes(data)
@@ -203,44 +226,8 @@ def _refresh()
     appliance_transparent_send_8370(packet, MSGTYPE_ENCRYPTED_REQUEST)
 }
 
-def _apply()
+def _apply(cmdParams)
 {
-    /*
-    class fan_speed_enum(Enum):
-        Auto = 102
-        Full = 100
-        High = 80
-        Medium = 60
-        Low = 40
-        Silent = 20
-
-    class operational_mode_enum(Enum):
-        auto = 1
-        cool = 2
-        dry = 3
-        heat = 4
-        fan_only = 5
-
-    class swing_mode_enum(Enum):
-        Off = 0x0
-        Vertical = 0xC
-        Horizontal = 0x3
-        Both = 0xF
-    */
-    
-    def cmdParams =
-        [
-            feedback_enabled: true,
-            power_state: true,
-            temperature_celsius: 19.5,
-            operational_mode: 1,
-            fan_speed: 102,
-            swing_mode: 0x0,
-            turbo_mode: false,
-            screen_display: true,
-            fahrenheit_enabled: false
-        ]
-    
     def packet = packet_builder(id.toLong(), set_command(cmdParams))
     logDebug("_apply packet follows:")
     
@@ -260,14 +247,15 @@ def _process_response(data)
     if(0xC0 == i8Tou8(data[0xA]))
     {
         resp = appliance_response(data)
-        
-        // clear this syncWait, likely set by refresh()
-        clearWait([waitSetter: "refresh"])
-        
         logDebug("appliance_response: ${resp}")
         
         _updateAttributes(resp)
         state.state = resp
+        
+        // clear this syncWait, possibly set by refresh()
+        clearWait([waitSetter: "refresh"])
+        // clear this syncWait, possiblg set by _apply()
+        clearWait([waitSetter: "apply"])
     }
     
     return resp
