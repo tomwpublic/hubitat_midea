@@ -12,6 +12,9 @@ metadata
         capability "Refresh"
         capability "Thermostat"
         
+        command "openSocket"
+        command "closeSocket"
+        
         command "trace"
     }
 }
@@ -52,8 +55,6 @@ def initialize()
 
 def refresh()
 {
-    openSocket()
-    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -62,15 +63,11 @@ def refresh()
     _refresh()
     doWait()
     
-    closeSocket()
-    
     return true
 }
 
 def apply(cmdParams)
 {
-    openSocket()
-    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -78,8 +75,6 @@ def apply(cmdParams)
     syncWait([waitSetter: "apply", timeoutSec: 4])
     _apply(cmdParams)
     doWait()
-    
-    closeSocket()
     
     return true
 }
@@ -107,8 +102,6 @@ def trace()
             fahrenheit_enabled: false
         ]
     
-    openSocket()
-    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -120,9 +113,6 @@ def trace()
     syncWait([waitSetter: "apply", timeoutSec: 4])
     _apply(cmdParams)
     doWait()
-    
-    closeSocket()
-    
     
     /*
     def resp = [power_state:true, imode_resume:false, timer_mode:false, appliance_error:false, target_temperature:19.5, operational_mode:1, fan_speed:102, on_timer_status:false, on_timer_hour:31, on_timer_minutes:3, off_timer_status:false, off_timer_hour:31, off_timer_minutes:3, swing_mode:0, cozy_sleep:0, save:false, low_frequency_fan:false, super_fan:false, feel_own:false, child_sleep_mode:false, exchange_air:false, dry_clean:false, aux_heat:false, eco_mode:false, clean_up:false, temp_unit:false, sleep_function:false, turbo_mode:false, catch_cold:false, night_light:false, peak_elec:false, natural_fan:false, outdoor_temperature:16.0, humidity:0, indoor_temperature:20.0]
