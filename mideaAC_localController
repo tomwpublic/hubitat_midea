@@ -36,21 +36,18 @@ def updated()
 
 def configure()
 {
-    def fanModes = [auto: 102, full: 100, high: 80, medium: 60, low: 40, silent: 20]
-    def fanModesJ = new groovy.json.JsonOutput().toJson(fanModes)
-    sendEvent(name: "supportedThermostatFanModes", value: fanModesJ)
+    def fanModes = ["auto", "full", "high", "medium", "low", "silent"]
+    sendEvent(name: "supportedThermostatFanModes", value: fanModes)
     
-    def thermoModes = [auto: 1, cool: 2, dry: 3, heat: 4, fan_only: 5]
-    def thermoModesJ = new groovy.json.JsonOutput().toJson(thermoModes)
-    sendEvent(name: "supportedThermostatModes", value: thermoModesJ)    
+    def thermoModes = ["auto", "cool", "dry", "heat", "fan_only"]
+    sendEvent(name: "supportedThermostatModes", value: thermoModes)    
     
     initialize()
-    // refresh()
 }
 
 def initialize()
 {
-    //TODO open socket, etc
+    refresh()
 }
 
 def refresh()
@@ -340,12 +337,34 @@ def setSchedule(JSON_OBJECT)
 
 def setThermostatFanMode(fanmode)
 {
-    log.debug "setThermostatFanMode() not yet supported"
+    if(["auto", "full", "high", "medium", "low", "silent"].contains(fanmode))
+    {
+        def params = updateSettingParams([fan_speed: translateFanMode(fanmode, "string")])
+        if(params)
+        {
+            apply(params)
+        }
+    }
+    else
+    {
+        logDebug("setThermostatFanMode(): unsupported mode")
+    }
 }
 
 def setThermostatMode(thermostatmode)
 {
-    log.debug "setThermostatMode() not yet supported"
+    if(["auto", "cool", "dry", "heat", "fan_only"].contains(thermostatmode))
+    {
+        def params = updateSettingParams([operational_mode: translateMode(thermostatmode, "string")])
+        if(params)
+        {
+            apply(params)
+        }
+    }
+    else
+    {
+        logDebug("setThermostatMode(): unsupported mode")
+    }
 }
 
 def _authenticate()
@@ -389,12 +408,15 @@ def _process_response(data)
         resp = appliance_response(data)
         logDebug("appliance_response: ${resp}")
         
-        _updateAttributes(resp)
-        setVolatileState("state", resp)
+        if(resp)
+        {
+            _updateAttributes(resp)
+            setVolatileState("state", resp)
+        }
         
         // clear this syncWait, possibly set by refresh()
         clearWait([waitSetter: "refresh"])
-        // clear this syncWait, possiblg set by _apply()
+        // clear this syncWait, possibly set by _apply()
         clearWait([waitSetter: "apply"])
     }
     
