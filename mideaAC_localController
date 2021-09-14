@@ -12,9 +12,6 @@ metadata
         capability "Refresh"
         capability "Thermostat"
         
-        command "openSocket"
-        command "closeSocket"
-        
         command "trace"
     }
 }
@@ -58,6 +55,8 @@ def initialize()
 
 def refresh()
 {
+    openSocket()
+    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -66,11 +65,15 @@ def refresh()
     _refresh()
     doWait()
     
+    closeSocket()
+    
     return true
 }
 
 def apply(cmdParams)
 {
+    openSocket()
+    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -78,6 +81,8 @@ def apply(cmdParams)
     syncWait([waitSetter: "apply", timeoutSec: 4])
     _apply(cmdParams)
     doWait()
+    
+    closeSocket()
     
     return true
 }
@@ -105,6 +110,8 @@ def trace()
             fahrenheit_enabled: false
         ]
     
+    openSocket()
+    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -116,6 +123,8 @@ def trace()
     syncWait([waitSetter: "apply", timeoutSec: 4])
     _apply(cmdParams)
     doWait()
+    
+    closeSocket()
     
     
     /*
