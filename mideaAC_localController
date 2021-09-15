@@ -12,6 +12,9 @@ metadata
         capability "Refresh"
         capability "Thermostat"
         
+        command "openSocket"
+        command "closeSocket"
+        
         command "trace"
     }
 }
@@ -52,13 +55,6 @@ def initialize()
 
 def refresh()
 {
-    closeSocket()
-    pauseExecution(100)
-    
-    syncWait([waitSetter: "open", timeoutSec: 4])
-    openSocket()
-    doWait()
-    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -72,13 +68,6 @@ def refresh()
 
 def apply(cmdParams)
 {
-    closeSocket()
-    pauseExecution(100)
-    
-    syncWait([waitSetter: "open", timeoutSec: 4])
-    openSocket()
-    doWait()
-    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -112,13 +101,6 @@ def trace()
             screen_display: true,
             fahrenheit_enabled: false
         ]
-    
-    closeSocket()
-    pauseExecution(100)
-    
-    syncWait([waitSetter: "open", timeoutSec: 4])
-    openSocket()
-    doWait()
     
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
@@ -165,12 +147,6 @@ def parse(String message)
     if(rdB.size() < 13)
     {
         logDebug("ignoring short response")
-        
-        // clear this syncWait, likely set by connectSocket
-        // note: the Midea units appear to return one 0x00 byte on connect.
-        //    if this behavior changes, we will need a different signal to clear the wait.
-        clearWait([waitSetter: "open"])
-        
         return
     }
     
@@ -190,7 +166,7 @@ def parse(String message)
             {
                 setTcpKey(tcp_key)
                 
-                // clear this syncWait, likely set by _authenticate
+                // clear this syncWait
                 clearWait([waitSetter: "auth"])
             }
             break
