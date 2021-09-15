@@ -217,6 +217,7 @@ def openSocket()
 {
     try
     {
+        logDebug("opening socket")
         interfaces.rawSocket.connect(ipAddress, port.toInteger(), byteInterface: true)
     }
     catch (Exception e)
@@ -229,6 +230,7 @@ def closeSocket()
 {
     try
     {
+        logDebug("closing socket")
         interfaces.rawSocket.close()
     }
     catch (Exception e)
