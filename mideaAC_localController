@@ -121,15 +121,25 @@ def trace()
     doWait()
     */
     
-    logDebug(correctTemp("12.5", "C"))
-    logDebug(correctTemp("54.5", "F"))
-    logDebug(correctTemp(12.5, "C"))
-    logDebug(correctTemp(54.5, "F"))
+    62.upto(86)
+    {
+    def cmdParams =
+        [
+            feedback_enabled: true,
+            power_state: true,
+            target_temperature: it,
+            operational_mode: 1,
+            fan_speed: 102,
+            swing_mode: 0x0,
+            turbo_mode: false,
+            screen_display: true,
+            fahrenheit_enabled: false
+        ]
+        
+        logDebug("F = ${it}")
     
-    logDebug(correctTemp("12.5", "F"))
-    logDebug(correctTemp("-10.83333", "C"))
-    logDebug(correctTemp(12.5, "F"))
-    logDebug(correctTemp(-10.83333, "C"))
+    set_command(cmdParams)
+    }
 }
 
 def logHexBytes(data)
@@ -326,7 +336,7 @@ def off()
 
 def setCoolingSetpoint(temperature)
 {
-    temperature = correctTemp(temperature, degC ? "C" : "F")
+    temperature = ensureCelsius(temperature)
     
     def params = updateSettingParams([target_temperature: temperature])
     if(params)
@@ -446,6 +456,11 @@ def correctTemp(input, inputScale)
         default:
             return input
     }
+}
+
+def ensureCelsius(input)
+{
+    return (degC) ? new BigDecimal(input) : fahrenheitToCelsius(new BigDecimal(input))
 }
 
 def _updateAttributes(resp)
