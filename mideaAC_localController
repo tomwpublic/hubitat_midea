@@ -8,6 +8,7 @@ metadata
     {
         attribute "outdoorTemperature", "number"
         
+        capability "Configuration"
         capability "Initialize"
         capability "Refresh"
         capability "Thermostat"
@@ -27,7 +28,11 @@ preferences
         input name: "port", type: "number", title: "port", required: true, defaultValue: 6444
         input name: "id", type: "number", title: "id", required: true
         input name: "token", type: "text", title: "token", required: true
-        input name: "key", type: "text", title: "k1", required: true
+        input name: "key", type: "text", title: "k1", required: true        
+    }
+    section
+    {
+        input name: "degC", type: "bool", title: "Use degrees C? (Off for Degrees F)", defaultValue: true
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
 }
@@ -45,12 +50,12 @@ def configure()
     def thermoModes = ["auto", "cool", "dry", "heat", "fan_only"]
     sendEvent(name: "supportedThermostatModes", value: thermoModes)    
     
-    initialize()
+    // initialize()
 }
 
 def initialize()
 {
-    refresh()
+    // refresh()
 }
 
 def refresh()
@@ -89,6 +94,7 @@ def logDebug(msg)
 
 def trace()
 {
+    /*
     def cmdParams =
         [
             feedback_enabled: true,
@@ -113,11 +119,17 @@ def trace()
     syncWait([waitSetter: "apply", timeoutSec: 4])
     _apply(cmdParams)
     doWait()
-    
-    /*
-    def resp = [power_state:true, imode_resume:false, timer_mode:false, appliance_error:false, target_temperature:19.5, operational_mode:1, fan_speed:102, on_timer_status:false, on_timer_hour:31, on_timer_minutes:3, off_timer_status:false, off_timer_hour:31, off_timer_minutes:3, swing_mode:0, cozy_sleep:0, save:false, low_frequency_fan:false, super_fan:false, feel_own:false, child_sleep_mode:false, exchange_air:false, dry_clean:false, aux_heat:false, eco_mode:false, clean_up:false, temp_unit:false, sleep_function:false, turbo_mode:false, catch_cold:false, night_light:false, peak_elec:false, natural_fan:false, outdoor_temperature:16.0, humidity:0, indoor_temperature:20.0]
-    _updateAttributes(resp)
     */
+    
+    logDebug(correctTemp("12.5", "C"))
+    logDebug(correctTemp("54.5", "F"))
+    logDebug(correctTemp(12.5, "C"))
+    logDebug(correctTemp(54.5, "F"))
+    
+    logDebug(correctTemp("12.5", "F"))
+    logDebug(correctTemp("-10.83333", "C"))
+    logDebug(correctTemp(12.5, "F"))
+    logDebug(correctTemp(-10.83333, "C"))
 }
 
 def logHexBytes(data)
@@ -147,6 +159,12 @@ def parse(String message)
     if(rdB.size() < 13)
     {
         logDebug("ignoring short response")
+        
+        // clear this syncWait, likely set by connectSocket
+        // note: the Midea units appear to return one 0x00 byte on connect.
+        //    if this behavior changes, we will need a different signal to clear the wait.
+        clearWait([waitSetter: "open"])
+        
         return
     }
     
@@ -166,7 +184,7 @@ def parse(String message)
             {
                 setTcpKey(tcp_key)
                 
-                // clear this syncWait
+                // clear this syncWait, likely set by _authenticate
                 clearWait([waitSetter: "auth"])
             }
             break
@@ -231,7 +249,7 @@ def updateSettingParams(paramsIn)
     }
     
     // always set these -- they won't be in the response but need to be in the command
-    paramsOut['fahrenheit_enabled'] = false
+    paramsOut['fahrenheit_enabled'] = !(degC)
     paramsOut['screen_display'] = true
     paramsOut['feedback_enabled'] = true    
     
@@ -308,6 +326,8 @@ def off()
 
 def setCoolingSetpoint(temperature)
 {
+    temperature = correctTemp(temperature, degC ? "C" : "F")
+    
     def params = updateSettingParams([target_temperature: temperature])
     if(params)
     {
@@ -413,6 +433,21 @@ def _process_response(data)
     return resp
 }
 
+def correctTemp(input, inputScale)
+{
+    switch(inputScale)
+    {
+        case "F":
+            return (degC ? fahrenheitToCelsius(new BigDecimal(input)) : new BigDecimal(input)).setScale(1, BigDecimal.ROUND_HALF_UP)
+        
+        case "C":
+            return (degC ? new BigDecimal(input) : celsiusToFahrenheit(new BigDecimal(input))).setScale(1, BigDecimal.ROUND_HALF_UP)
+        
+        default:
+            return input
+    }
+}
+
 def _updateAttributes(resp)
 {
     if(!resp)
@@ -422,14 +457,14 @@ def _updateAttributes(resp)
     
     def events = [[:]]
     
-    events +=    [name: "coolingSetpoint",             value: resp.target_temperature]
-    events +=    [name: "heatingSetpoint",             value: resp.target_temperature]
-    events +=    [name: "temperature",                 value: resp.indoor_temperature]
+    events +=    [name: "coolingSetpoint",             value: correctTemp(resp.target_temperature, "C")]
+    events +=    [name: "heatingSetpoint",             value: correctTemp(resp.target_temperature, "C")]
+    events +=    [name: "temperature",                 value: correctTemp(resp.indoor_temperature, "C")]
     events +=    [name: "thermostatFanMode",           value: translateFanMode(resp.fan_speed?.toInteger(), "integer")]
     events +=    [name: "thermostatMode",              value: translateMode(resp.operational_mode?.toInteger(), "integer")]
     events +=    [name: "thermostatOperatingState",    value: resp.power_state ? "on" : "off" ]
-    events +=    [name: "thermostatSetpoint",          value: resp.target_temperature]
-    events +=    [name: "outdoorTemperature",          value: resp.outdoor_temperature]
+    events +=    [name: "thermostatSetpoint",          value: correctTemp(resp.target_temperature, "C")]
+    events +=    [name: "outdoorTemperature",          value: correctTemp(resp.outdoor_temperature, "C")]
     
     events.each
     {
