@@ -60,6 +60,8 @@ def initialize()
 
 def refresh()
 {
+    if(!openSocket()) {return false}
+    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -68,11 +70,15 @@ def refresh()
     _refresh()
     doWait()
     
+    closeSocket()
+    
     return true
 }
 
 def apply(cmdParams)
 {
+    if(!openSocket()) {return false}
+    
     syncWait([waitSetter: "auth", timeoutSec: 4])
     _authenticate()
     doWait()
@@ -80,6 +86,8 @@ def apply(cmdParams)
     syncWait([waitSetter: "apply", timeoutSec: 4])
     _apply(cmdParams)
     doWait()
+    
+    closeSocket()
     
     return true
 }
@@ -219,11 +227,17 @@ def openSocket()
     {
         logDebug("opening socket")
         interfaces.rawSocket.connect(ipAddress, port.toInteger(), byteInterface: true)
+        
+        // workaround: wait a little while to ensure the socket opened
+        pauseExecution(500)
     }
     catch (Exception e)
     {
         logDebug("error: ${e.message}")
+        return false
     }
+    
+    return true
 }
 
 def closeSocket()
@@ -232,11 +246,17 @@ def closeSocket()
     {
         logDebug("closing socket")
         interfaces.rawSocket.close()
+        
+        // workaround: wait a little while to ensure the socket closed
+        pauseExecution(500)
     }
     catch (Exception e)
     {
         // swallow errors
+        return false
     }
+    
+    return true
 }
 
 def _writeBytes(byte[] bytes)
