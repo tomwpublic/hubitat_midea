@@ -10,11 +10,14 @@ Special thanks to ghgeigher and etienne from the Hubitat forums for their testin
 * Use Hubitat Package Manager (HPM) for the best overall experience with installation and upgrades.
 
 # Manual Installation instructions:
-* Follow the instructions on this page to install and execute the `midea-discover` utility: https://github.com/mac-zhou/midea-msmart/blob/master/README.md
 * In the *Drivers Code* section of Hubitat, add the mideaAC_localController driver.
+
+# Configuration instructions:
+* Follow the instructions on this page to install and execute the `midea-discover` utility: https://github.com/mac-zhou/midea-msmart/blob/master/README.md
 * In the *Devices* section of Hubitat, add a *New Virtual Device* of type Midea AC local controller.
 * On the configuration page for the newly created *Device*, enter the token, key/k1, and device id from `midea-discover`, along with the IP address of your Midea AC unit.
 * Indicate whether you plan to use Celsius or Fahrenheit for your temperature setpoints and temperature reporting.  
+
 
 # Usage instructions:
 
