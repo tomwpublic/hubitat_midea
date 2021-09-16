@@ -1,6 +1,6 @@
 # hubitat_midea
 
-This provides Thermostat driver capabilities for Hubitat with Midea-supplied air conditioning units.
+This provides Thermostat driver capabilities for Hubitat with Midea-supplied air conditioning units.  Many common brands are supplied by Midea and are compatible with this integration.
 
 This component is substantially based on and is mostly a direct port of this excellent work: https://github.com/mac-zhou/midea-msmart
 
