@@ -13,8 +13,8 @@ metadata
         capability "Refresh"
         capability "Thermostat"
         
-        command "openSocket"
-        command "closeSocket"
+        command "dry"
+        command "fan_only"
         
         command "trace"
     }
@@ -47,15 +47,15 @@ def configure()
     def fanModes = ["auto", "full", "high", "medium", "low", "silent"]
     sendEvent(name: "supportedThermostatFanModes", value: fanModes)
     
-    def thermoModes = ["auto", "cool", "dry", "heat", "fan_only"]
+    def thermoModes = ["auto", "cool", "dry", "fan_only", "heat"]
     sendEvent(name: "supportedThermostatModes", value: thermoModes)    
     
-    // initialize()
+    initialize()
 }
 
 def initialize()
 {
-    // refresh()
+    refresh()
 }
 
 def refresh()
@@ -290,20 +290,17 @@ def updateSettingParams(paramsIn)
 
 def auto()
 {
-    def params = updateSettingParams([operational_mode: translateMode("auto", "string")])
-    if(params)
-    {
-        apply(params)
-    }
+    setThermostatMode("auto")
 }
 
 def cool()
 {
-    def params = updateSettingParams([operational_mode: translateMode("cool", "string")])
-    if(params)
-    {
-        apply(params)
-    }
+    setThermostatMode("cool")
+}
+
+def dry()
+{
+    setThermostatMode("dry")
 }
 
 def emergencyHeat()
@@ -338,13 +335,14 @@ def fanOn()
     }    
 }
 
+def fan_only()
+{
+    setThermostatMode("fan_only")
+}
+
 def heat()
 {
-    def params = updateSettingParams([operational_mode: translateMode("heat", "string")])
-    if(params)
-    {
-        apply(params)
-    }
+    setThermostatMode("heat")
 }
 
 def off()
