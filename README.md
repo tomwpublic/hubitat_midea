@@ -6,9 +6,6 @@ This component is substantially based on and is mostly a direct port of this exc
 
 Special thanks to ghgeiger and etienne from the Hubitat forums for their testing and troubleshooting help.
 
-# Automated Installation instructions:
-* Use Hubitat Package Manager (HPM) for the best overall experience with installation and upgrades.
-
 # Manual Installation instructions:
 * In the *Drivers Code* section of Hubitat, add the mideaAC_localController driver.
 
