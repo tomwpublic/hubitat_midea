@@ -10,7 +10,7 @@
       "id": "ff338f24-c818-4159-a724-16288fd99add",
       "name": "Midea AC local controller",
       "namespace": "tomw",
-      "location": "https://github.com/tomwpublic/hubitat_midea/blob/main/mideaAC_localController",
+      "location": "https://raw.githubusercontent.com/tomwpublic/hubitat_midea/main/mideaAC_localController",
       "required": true
     }
   ],
