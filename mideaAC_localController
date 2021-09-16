@@ -186,6 +186,7 @@ def trace()
     doWait()
     */
     
+    /*
     60.upto(88)
     {
     def cmdParams =
@@ -204,6 +205,32 @@ def trace()
         logDebug("F = ${it}")
     
     set_command(cmdParams)
+    }
+    */    
+    
+    62.upto(66)
+    {
+        def target_temperature = it
+        logDebug(correctTemp(target_temperature, "F"))
+        
+        target_temperature = correctTemp(target_temperature, "F")
+        target_temperature = (target_temperature < 17) ? 17 : ((target_temperature > 30) ? 30 : target_temperature)
+        logDebug(target_temperature)
+        
+        def data = 0
+        data |= (target_temperature?.toInteger() & 0xf)
+        // temperature_dot5.setter
+        logDebug(target_temperature * 2)
+        if((target_temperature * 2).toInteger() % 2 != 0)
+        {
+            data |= 0x10
+            logDebug("dot5 yes")
+        }
+        else
+        {
+            data &= (~0x10)
+            logDebug("dot5 no")
+        }
     }
 }
 
@@ -975,7 +1002,7 @@ def set_command(Map cmdParams)
     data[0x0c] &= ~ 0x0f
     data[0x0c] |= (target_temperature?.toInteger() & 0xf)
     // temperature_dot5.setter
-    if((Math.round(target_temperature * 2)?.toInteger() % 2) != 0)
+    if((target_temperature * 2).toInteger() % 2 != 0)
     {
         data[0x0c] |= 0x10
     }
