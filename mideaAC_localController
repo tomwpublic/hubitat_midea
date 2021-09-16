@@ -18,7 +18,7 @@ limitations under the License.
 
 Change history:
 
-0.9.0 (09/16 AM dev) - tomw - Initial release.
+0.9.0 (09/16 mid-day dev) - tomw - Initial release.
 
 */
 
@@ -53,6 +53,7 @@ preferences
     section
     {
         input name: "degC", type: "bool", title: "Use degrees C? (Off for Degrees F)", defaultValue: true
+        input name: "refreshInterval", type: "number", title: "Polling refresh interval in seconds", defaultValue: 60
         input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
     }
 }
@@ -88,6 +89,8 @@ def refresh()
     
     try
     {
+        unschedule(refresh)
+        
         setVolatileState("sessionActive", true)
         
         if(!openSocket()) {throw new Exception("failed to open socket")}
@@ -108,6 +111,8 @@ def refresh()
     {
         closeSocket()
         setVolatileState("sessionActive", false)
+        
+        runIn(refreshInterval ?: 60, refresh)
     }
 }
 
