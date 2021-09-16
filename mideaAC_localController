@@ -18,7 +18,7 @@ limitations under the License.
 
 Change history:
 
-0.9.0 - tomw - Initial release.
+0.9.0 (09/16 AM dev) - tomw - Initial release.
 
 */
 
@@ -80,36 +80,68 @@ def initialize()
 
 def refresh()
 {
-    if(!openSocket()) {return false}
+    if(getVolatileState("sessionActive"))
+    {
+        logDebug("refresh(): socket access failed. another session is already in progress.")
+        return
+    }
     
-    syncWait([waitSetter: "auth", timeoutSec: 4])
-    _authenticate()
-    doWait()
-    
-    syncWait([waitSetter: "refresh", timeoutSec: 4])
-    _refresh()
-    doWait()
-    
-    closeSocket()
-    
-    return true
+    try
+    {
+        setVolatileState("sessionActive", true)
+        
+        if(!openSocket()) {throw new Exception("failed to open socket")}
+        
+        syncWait([waitSetter: "auth", timeoutSec: 4])
+        runInMillis(200, '_authenticate')
+        doWait()
+        
+        syncWait([waitSetter: "refresh", timeoutSec: 4])
+        runInMillis(200, '_refresh')
+        doWait()
+    }
+    catch (Exception e)
+    {
+        log.debug "error: refresh(): ${e.message}"
+    }
+    finally
+    {
+        closeSocket()
+        setVolatileState("sessionActive", false)
+    }
 }
 
 def apply(cmdParams)
-{
-    if(!openSocket()) {return false}
+{    
+    if(getVolatileState("sessionActive"))
+    {
+        logDebug("apply(): socket access failed. another session is already in progress.")
+        return
+    }
     
-    syncWait([waitSetter: "auth", timeoutSec: 4])
-    _authenticate()
-    doWait()
-    
-    syncWait([waitSetter: "apply", timeoutSec: 4])
-    _apply(cmdParams)
-    doWait()
-    
-    closeSocket()
-    
-    return true
+    try
+    {
+        setVolatileState("sessionActive", true)
+        
+        if(!openSocket()) {throw new Exception("failed to open socket")}
+        
+        syncWait([waitSetter: "auth", timeoutSec: 4])
+        runInMillis(200, '_authenticate')
+        doWait()
+        
+        syncWait([waitSetter: "apply", timeoutSec: 4])
+        runInMillis(200, '_apply', [data: cmdParams])
+        doWait()
+    }
+    catch (Exception e)
+    {
+        log.debug "error: apply(): ${e.message}"
+    }
+    finally
+    {
+        closeSocket()
+        setVolatileState("sessionActive", false)
+    }
 }
 
 def logDebug(msg) 
@@ -243,19 +275,11 @@ def parse(String message)
 
 def openSocket()
 {
-    try
-    {
-        logDebug("opening socket")
-        interfaces.rawSocket.connect(ipAddress, port.toInteger(), byteInterface: true)
-        
-        // workaround: wait a little while to ensure the socket opened
-        pauseExecution(500)
-    }
-    catch (Exception e)
-    {
-        logDebug("error: ${e.message}")
-        return false
-    }
+    logDebug("opening socket")
+    interfaces.rawSocket.connect(ipAddress, port.toInteger(), byteInterface: true)
+    
+    // workaround: wait a little while to ensure the socket opened
+    pauseExecution(500)
     
     return true
 }
@@ -273,7 +297,6 @@ def closeSocket()
     catch (Exception e)
     {
         // swallow errors
-        return false
     }
     
     return true
@@ -416,8 +439,12 @@ def setThermostatMode(thermostatmode)
     if(["auto", "cool", "dry", "heat", "fan_only"].contains(thermostatmode))
     {
         def params = updateSettingParams([operational_mode: translateMode(thermostatmode, "string")])
+        
         if(params)
         {
+            // all of these modes indicate power_state should be 'on'
+            params.power_state = true
+            
             apply(params)
         }
     }
@@ -1348,7 +1375,7 @@ def setVolatileState(name, value)
 
 def getVolatileState(name)
 {
-    return volatileState.getAt(device.getDeviceNetworkId())?.getAt(name)  
+    return volatileState.getAt(device.getDeviceNetworkId())?.getAt(name) ?: null
 }
 
 def syncWait(data)
