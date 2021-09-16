@@ -16,7 +16,7 @@ Special thanks to ghgeiger and etienne from the Hubitat forums for their testing
 * Follow the instructions on this page to install and execute the `midea-discover` utility: https://github.com/mac-zhou/midea-msmart/blob/master/README.md
     * Note that this requires a separate computer running Python3 and can not be run directly from Hubitat.  This is a one-time configuration step.
 * In the *Devices* section of Hubitat, add a *New Virtual Device* of type Midea AC local controller.
-* On the configuration page for the newly created *Device*, enter the token, key/k1, and device id from `midea-discover`, along with the IP address of your Midea AC unit.
+* On the configuration page for the newly created *Device*, enter the token, key, and device id from `midea-discover`, along with the IP address of your Midea AC unit.
 * Indicate whether you plan to use Celsius or Fahrenheit for your temperature setpoints and temperature reporting.  
 
 
