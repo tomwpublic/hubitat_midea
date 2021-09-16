@@ -1,0 +1,21 @@
+  
+{
+  "packageName": "hubitat_midea",
+  "author": "tomw",
+  "version": "0.9.0",
+  "minimumHEVersion": "2.1.9",
+  "dateReleased": "2021-09-15",
+  "drivers": [
+    {
+      "id": "ff338f24-c818-4159-a724-16288fd99add",
+      "name": "Midea AC local controller",
+      "namespace": "tomw",
+      "location": "https://github.com/tomwpublic/hubitat_midea/blob/main/mideaAC_localController",
+      "required": true
+    }
+  ],
+  "licenseFile": "https://raw.githubusercontent.com/tomwpublic/hubitat_midea/main/LICENSE",
+  "releaseNotes": "0.9.0 - @tomw - Initial release.",
+  "documentationLink": "https://github.com/tomwpublic/hubitat_midea/blob/main/README.md",
+  "communityLink": "TBD"
+}
