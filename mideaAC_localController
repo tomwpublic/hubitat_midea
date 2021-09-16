@@ -48,7 +48,7 @@ preferences
         input name: "port", type: "number", title: "port", required: true, defaultValue: 6444
         input name: "id", type: "number", title: "id", required: true
         input name: "token", type: "text", title: "token", required: true
-        input name: "key", type: "text", title: "k1", required: true        
+        input name: "key", type: "text", title: "key", required: true        
     }
     section
     {
