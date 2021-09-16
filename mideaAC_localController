@@ -186,7 +186,7 @@ def trace()
     doWait()
     */
     
-    62.upto(86)
+    60.upto(88)
     {
     def cmdParams =
         [
@@ -969,11 +969,11 @@ def set_command(Map cmdParams)
     data[0x0b] |= (cmdParams.power_state ? 0x01 : 0)
     
     // target_temperature.setter
-    det target_temperature = cmdParams.target_temperature?.toInteger()
+    def target_temperature = cmdParams.target_temperature
     // bound the temperature setpoint to within the range of 17C to 30C
     target_temperature = (target_temperature < 17) ? 17 : ((target_temperature > 30) ? 30 : target_temperature)
     data[0x0c] &= ~ 0x0f
-    data[0x0c] |= (target_temperature & 0xf)
+    data[0x0c] |= (target_temperature?.toInteger() & 0xf)
     // temperature_dot5.setter
     if((Math.round(target_temperature * 2)?.toInteger() % 2) != 0)
     {
