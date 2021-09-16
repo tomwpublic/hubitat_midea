@@ -4,7 +4,7 @@ This provides Thermostat driver capabilities for Hubitat with Midea-supplied air
 
 This component is substantially based on and is mostly a direct port of this excellent work: https://github.com/mac-zhou/midea-msmart
 
-Special thanks to ghgeigher and etienne from the Hubitat forums for their testing and troubleshooting help.
+Special thanks to ghgeiger and etienne from the Hubitat forums for their testing and troubleshooting help.
 
 # Automated Installation instructions:
 * Use Hubitat Package Manager (HPM) for the best overall experience with installation and upgrades.
