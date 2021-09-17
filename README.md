@@ -11,8 +11,8 @@ Special thanks to ghgeiger and etienne from the Hubitat forums for their testing
 
 # Configuration instructions:
 * Follow the instructions on this page to install and execute the `midea-discover` utility: https://github.com/mac-zhou/midea-msmart/blob/master/README.md
-    * A reboot of the machine may be necessary after the `pip3` installation step before you will be able to run the `midea-discover` utility
     * Note that this requires a separate computer running Python3 and can not be run directly from Hubitat.  This is a one-time configuration step.
+    * A reboot of the machine may be necessary after the `pip3` installation step before you will be able to run the `midea-discover` utility.    
     * Sample Output:
     * ![Alt text](docs/sampleOutput.png?raw=true "midea-discover output")
 
