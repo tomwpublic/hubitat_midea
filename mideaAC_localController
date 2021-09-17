@@ -35,8 +35,6 @@ metadata
         
         command "dry"
         command "fan_only"
-        
-        command "trace"
     }
 }
 
@@ -154,83 +152,6 @@ def logDebug(msg)
     if (logEnable)
     {
         log.debug(msg)
-    }
-}
-
-def trace()
-{
-    /*
-    def cmdParams =
-        [
-            feedback_enabled: true,
-            power_state: true,
-            target_temperature: 19.5,
-            operational_mode: 1,
-            fan_speed: 102,
-            swing_mode: 0x0,
-            turbo_mode: false,
-            screen_display: true,
-            fahrenheit_enabled: false
-        ]
-    
-    syncWait([waitSetter: "auth", timeoutSec: 4])
-    _authenticate()
-    doWait()
-    
-    syncWait([waitSetter: "refresh", timeoutSec: 4])
-    _refresh()
-    doWait()
-    
-    syncWait([waitSetter: "apply", timeoutSec: 4])
-    _apply(cmdParams)
-    doWait()
-    */
-    
-    /*
-    60.upto(88)
-    {
-    def cmdParams =
-        [
-            feedback_enabled: true,
-            power_state: true,
-            target_temperature: it,
-            operational_mode: 1,
-            fan_speed: 102,
-            swing_mode: 0x0,
-            turbo_mode: false,
-            screen_display: true,
-            fahrenheit_enabled: false
-        ]
-        
-        logDebug("F = ${it}")
-    
-    set_command(cmdParams)
-    }
-    */    
-    
-    62.upto(66)
-    {
-        def target_temperature = it
-        logDebug(correctTemp(target_temperature, "F"))
-        
-        target_temperature = correctTemp(target_temperature, "F")
-        target_temperature = (target_temperature < 17) ? 17 : ((target_temperature > 30) ? 30 : target_temperature)
-        logDebug(target_temperature)
-        
-        def data = 0
-        data |= (target_temperature?.toInteger() & 0xf)
-        // temperature_dot5.setter
-        logDebug(target_temperature * 2)
-        if((target_temperature * 2).toInteger() % 2 != 0)
-        {
-            data |= 0x10
-            logDebug("dot5 yes")
-        }
-        else
-        {
-            data &= (~0x10)
-            logDebug("dot5 no")
-        }
     }
 }
 
