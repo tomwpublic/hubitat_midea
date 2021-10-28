@@ -19,6 +19,7 @@ limitations under the License.
 Change history:
 
 0.9.0 - tomw - Initial release.
+0.9.1 - tomw - Add 'off' as a thermostatMode.  Some improvements to Fahrenheit setpoints (still in progress).
 
 */
 
@@ -66,7 +67,7 @@ def configure()
     def fanModes = ["auto", "full", "high", "medium", "low", "silent"]
     sendEvent(name: "supportedThermostatFanModes", value: fanModes)
     
-    def thermoModes = ["auto", "cool", "dry", "fan_only", "heat"]
+    def thermoModes = ["auto", "cool", "dry", "fan_only", "heat", "off"]
     sendEvent(name: "supportedThermostatModes", value: thermoModes)    
     
     initialize()
@@ -352,6 +353,7 @@ def off()
 
 def setCoolingSetpoint(temperature)
 {
+    logDebug("setCoolingSetpoint(${temperature})")
     temperature = ensureCelsius(temperature)
     
     def params = updateSettingParams([target_temperature: temperature])
@@ -363,6 +365,7 @@ def setCoolingSetpoint(temperature)
 
 def setHeatingSetpoint(temperature)
 {
+    logDebug("setHeatingSetpoint(${temperature})")
     setCoolingSetpoint(temperature)
 }
 
@@ -400,11 +403,18 @@ def setThermostatMode(thermostatmode)
             
             apply(params)
         }
+        
+        return
     }
-    else
+    
+    if("off" == thermostatmode)
     {
-        logDebug("setThermostatMode(): unsupported mode")
+        off()
+        
+        return
     }
+    
+    logDebug("setThermostatMode(): unsupported mode")
 }
 
 def _authenticate()
@@ -468,10 +478,10 @@ def correctTemp(input, inputScale)
     switch(inputScale)
     {
         case "F":
-            return (degC ? fahrenheitToCelsius(new BigDecimal(input)) : new BigDecimal(input)).setScale(1, BigDecimal.ROUND_HALF_UP)
+            return (degC ? fahrenheitToCelsius(new BigDecimal(input)) : (Math.round(new BigDecimal(input) * 2) / 2).setScale(1, BigDecimal.ROUND_HALF_UP))
         
         case "C":
-            return (degC ? new BigDecimal(input) : celsiusToFahrenheit(new BigDecimal(input))).setScale(1, BigDecimal.ROUND_HALF_UP)
+            return (degC ? new BigDecimal(input) : (Math.round(celsiusToFahrenheit(new BigDecimal(input)) * 2) / 2).setScale(1, BigDecimal.ROUND_HALF_UP))
         
         default:
             return input
