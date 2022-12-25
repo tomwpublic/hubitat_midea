@@ -20,6 +20,7 @@ Change history:
 
 0.9.0 - tomw - Initial release.
 0.9.1 - tomw - Add 'off' as a thermostatMode.  Some improvements to Fahrenheit setpoints (still in progress).
+0.9.2 - tomw - Fix for data format of attributes: supportedThermostatFanModes and supportedThermostatModes
 
 */
 
@@ -64,10 +65,12 @@ def updated()
 
 def configure()
 {
-    def fanModes = ["auto", "full", "high", "medium", "low", "silent"]
+    def jsonOut = new groovy.json.JsonOutput()
+    
+    def fanModes = jsonOut.toJson(["auto", "full", "high", "medium", "low", "silent"])
     sendEvent(name: "supportedThermostatFanModes", value: fanModes)
     
-    def thermoModes = ["auto", "cool", "dry", "fan_only", "heat", "off"]
+    def thermoModes = jsonOut.toJson(["auto", "cool", "dry", "fan_only", "heat", "off"])
     sendEvent(name: "supportedThermostatModes", value: thermoModes)    
     
     initialize()
