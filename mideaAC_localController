@@ -34,6 +34,7 @@ metadata
         capability "Initialize"
         capability "Refresh"
         capability "Thermostat"
+        capability "FanControl"
         
         command "dry"
         command "fan_only"
@@ -69,7 +70,10 @@ def configure()
     
     def fanModes = jsonOut.toJson(["auto", "full", "high", "medium", "low", "silent"])
     sendEvent(name: "supportedThermostatFanModes", value: fanModes)
-    
+
+    def fanSpeeds = jsonOut.toJson(["auto", "full", "high", "medium", "low", "silent"])
+    sendEvent(name: "supportedFanSpeeds", value: fanSpeeds)
+
     def thermoModes = jsonOut.toJson(["auto", "cool", "dry", "fan_only", "heat", "off"])
     sendEvent(name: "supportedThermostatModes", value: thermoModes)    
     
@@ -317,6 +321,23 @@ def fanAuto()
     }    
 }
 
+
+def setSpeed(fanSpeed)
+{
+    if(["auto", "full", "high", "medium", "low", "silent"].contains(fanSpeed))
+    {
+        def params = updateSettingParams([fan_speed: translateFanMode(fanSpeed, "string")])
+        if(params)
+        {
+            apply(params)
+        }    
+    }
+    else
+    {
+        log.warn("setSpeed(): unsupported mode ${fanSpeed}")
+    }
+}
+
 def fanCirculate()
 {
     def params = updateSettingParams([fan_speed: translateFanMode("medium", "string")])
@@ -389,7 +410,7 @@ def setThermostatFanMode(fanmode)
     }
     else
     {
-        logDebug("setThermostatFanMode(): unsupported mode")
+        logDebug("setThermostatFanMode(): unsupported mode ${fanmode}")
     }
 }
 
