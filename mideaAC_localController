@@ -99,7 +99,7 @@ def supportedFanSpeedsList()
 
 def supportedThermoModesList()
 {
-    return ["auto", "cool", "dry", "fan_only", "heat"]    
+    return ["auto", "cool", "dry", "fan_only", "heat", "off"]    
 }
 
 def initialize()
@@ -442,6 +442,13 @@ def setThermostatFanMode(fanmode)
 
 def setThermostatMode(thermostatmode)
 {
+    if("off" == thermostatmode)
+    {
+        off()
+        
+        return
+    }
+
     if(supportedThermoModesList().contains(thermostatmode))
     {
         def params = updateSettingParams([operational_mode: translateMode(thermostatmode, "string")])
@@ -453,13 +460,6 @@ def setThermostatMode(thermostatmode)
             
             apply(params)
         }
-        
-        return
-    }
-    
-    if("off" == thermostatmode)
-    {
-        off()
         
         return
     }
