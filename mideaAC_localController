@@ -24,6 +24,7 @@ Change history:
 0.9.3 -
     tcurtin - Add FanControl capability.
     tomw - Command dropdown lists on device page now match actual supported settings.
+0.9.4 - jcox10 - Bugfixes for "off" thermostat mode.
 
 */
 
