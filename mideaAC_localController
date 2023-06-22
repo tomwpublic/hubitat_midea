@@ -24,6 +24,7 @@ Change history:
 0.9.3 -
     tcurtin - Add FanControl capability.
     tomw - Command dropdown lists on device page now match actual supported settings.
+0.9.4 - jcox10 - Bugfixes for "off" thermostat mode.
 
 */
 
@@ -99,7 +100,7 @@ def supportedFanSpeedsList()
 
 def supportedThermoModesList()
 {
-    return ["auto", "cool", "dry", "fan_only", "heat"]    
+    return ["auto", "cool", "dry", "fan_only", "heat", "off"]    
 }
 
 def initialize()
@@ -442,6 +443,13 @@ def setThermostatFanMode(fanmode)
 
 def setThermostatMode(thermostatmode)
 {
+    if("off" == thermostatmode)
+    {
+        off()
+        
+        return
+    }
+
     if(supportedThermoModesList().contains(thermostatmode))
     {
         def params = updateSettingParams([operational_mode: translateMode(thermostatmode, "string")])
@@ -453,13 +461,6 @@ def setThermostatMode(thermostatmode)
             
             apply(params)
         }
-        
-        return
-    }
-    
-    if("off" == thermostatmode)
-    {
-        off()
         
         return
     }
