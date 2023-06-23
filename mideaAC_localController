@@ -557,8 +557,8 @@ def _updateAttributes(resp)
     events +=    [name: "heatingSetpoint",             value: correctTemp(resp.target_temperature, "C")]
     events +=    [name: "temperature",                 value: correctTemp(resp.indoor_temperature, "C")]
     events +=    [name: "thermostatFanMode",           value: translateFanMode(resp.fan_speed?.toInteger(), "integer")]
-    events +=    [name: "thermostatMode",              value: translateMode(resp.operational_mode?.toInteger(), "integer")]
-    events +=    [name: "thermostatOperatingState",    value: resp.power_state ? "on" : "off" ]
+    events +=    [name: "thermostatMode",              value: resp.power_state ? translateMode(resp.operational_mode?.toInteger(), "integer") : "off" ]
+    events +=    [name: "thermostatOperatingState",    value: resp.power_state ? getThermostatOperatingState(resp.operational_mode?.toInteger()) : "idle" ]
     events +=    [name: "thermostatSetpoint",          value: correctTemp(resp.target_temperature, "C")]
     events +=    [name: "outdoorTemperature",          value: correctTemp(resp.outdoor_temperature, "C")]
     
@@ -566,6 +566,19 @@ def _updateAttributes(resp)
     {
         sendEvent(it)
     }  
+}
+
+def getThermostatOperatingState(operationalMode)
+{
+    switch(operationalMode.toInteger())
+    {
+        case 1: return "cooling"
+        case 2: return "cooling"
+        case 3: return "cooling"
+        case 4: return "heating"
+        case 5: return "fan only"
+        default: return "on"
+    }
 }
 
 def translateMode(value, inputType)
