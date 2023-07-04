@@ -25,6 +25,7 @@ Change history:
     tcurtin - Add FanControl capability.
     tomw - Command dropdown lists on device page now match actual supported settings.
 0.9.4 - jcox10 - Bugfixes for "off" thermostat mode.
+0.9.5 - tomw - Support for Turbo mode (command and attribute).
 
 */
 
@@ -45,7 +46,10 @@ metadata
         
         command "setSpeed", [[name: "Fan speed*", type: "ENUM", constraints: supportedFanSpeedsList()]]
         command "setThermostatFanMode", [[name: "Fan mode*", type: "ENUM", constraints: supportedThermoFanModesList()]]        
-        command "setThermostatMode", [[name: "Thermostat mode*", type: "ENUM", constraints: supportedThermoModesList()]]        
+        command "setThermostatMode", [[name: "Thermostat mode*", type: "ENUM", constraints: supportedThermoModesList()]]
+        
+        command "controlTurboMode", [[name: "Turbo mode*", type: "ENUM", constraints: ["on", "off"]]]
+        attribute "turboMode", "enum", ["on", "off"]
     }
 }
 
@@ -335,13 +339,24 @@ def emergencyHeat()
     log.warn "emergencyHeat() not supported by this device"
 }
 
+def controlTurboMode(turboMode)
+{
+    def turboOn = ["on", "true", true].contains(turboMode)
+
+    def params = updateSettingParams([turbo_mode: turboOn])
+    if(params)
+    {
+        apply(params)
+    }
+}
+
 def fanAuto()
 {
     def params = updateSettingParams([fan_speed: translateFanMode("auto", "string")])
     if(params)
     {
         apply(params)
-    }    
+    }
 }
 
 def setSpeed(fanSpeed)
@@ -352,7 +367,7 @@ def setSpeed(fanSpeed)
         if(params)
         {
             apply(params)
-        }    
+        }
     }
     else
     {
@@ -371,7 +386,7 @@ def fanCirculate()
     if(params)
     {
         apply(params)
-    }    
+    }
 }
 
 def fanOn()
@@ -380,7 +395,7 @@ def fanOn()
     if(params)
     {
         apply(params)
-    }    
+    }
 }
 
 def fan_only()
@@ -561,6 +576,7 @@ def _updateAttributes(resp)
     events +=    [name: "thermostatOperatingState",    value: resp.power_state ? "on" : "off" ]
     events +=    [name: "thermostatSetpoint",          value: correctTemp(resp.target_temperature, "C"), unit: getUnit()]
     events +=    [name: "outdoorTemperature",          value: correctTemp(resp.outdoor_temperature, "C"), unit: getUnit()]
+    events +=    [name: "turboMode",                   value: resp.turbo_mode ? "on" : "off"]
     
     events.each
     {
@@ -912,7 +928,7 @@ def appliance_response(data)
     resp += [clean_up:                (data[0x09] & 0x20) > 0]
     resp += [temp_unit:               (data[0x09] & 0x80) > 0]
     resp += [sleep_function:          (data[0x0a] & 0x01) > 0]
-    resp += [turbo_mode:              (data[0x0a] & 0x02) > 0]
+    resp += [turbo_mode:              ((data[0x08] & 0x20) | (data[0x0a] & 0x02)) > 0]
     
     resp += [catch_cold:              (data[0x0a] & 0x08) > 0]
     resp += [night_light:             (data[0x0a] & 0x10) > 0]
@@ -1015,10 +1031,12 @@ def set_command(Map cmdParams)
     // turbo_mode.setter
     if(cmdParams.turbo_mode)
     {
+        data[0x12] = 0x20
         data[0x14] |= 0x02
     }
     else
     {
+        data[0x12] = 0
         data[0x14] &= (~0x02)
     }
     

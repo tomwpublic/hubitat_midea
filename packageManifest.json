@@ -2,7 +2,7 @@
 {
   "packageName": "hubitat_midea",
   "author": "tomw",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "minimumHEVersion": "2.1.9",
   "dateReleased": "2021-09-15",
   "drivers": [
@@ -15,7 +15,7 @@
     }
   ],
   "licenseFile": "https://raw.githubusercontent.com/tomwpublic/hubitat_midea/main/LICENSE",
-  "releaseNotes": "0.9.4 - jcox10 - Bugfixes for \"off\" thermostat mode.\n0.9.3 - tcurtin + tomw - Add FanControl capability.  Command dropdown lists on device page now match actual supported settings.\n0.9.2 - tomw - Fix for data format of attributes: supportedThermostatFanModes and supportedThermostatModes (press Configure on device page to finalize update)\n0.9.1 - tomw - Add 'off' as a thermostatMode.  Some improvements to Fahrenheit setpoints (still in progress).\n0.9.0 - tomw - Initial release.",
+  "releaseNotes": "0.9.5 - tomw - Support for Turbo mode (command and attribute).\n0.9.4 - jcox10 - Bugfixes for \"off\" thermostat mode.\n0.9.3 - tcurtin + tomw - Add FanControl capability.  Command dropdown lists on device page now match actual supported settings.\n0.9.2 - tomw - Fix for data format of attributes: supportedThermostatFanModes and supportedThermostatModes (press Configure on device page to finalize update)\n0.9.1 - tomw - Add 'off' as a thermostatMode.  Some improvements to Fahrenheit setpoints (still in progress).\n0.9.0 - tomw - Initial release.",
   "documentationLink": "https://github.com/tomwpublic/hubitat_midea/blob/main/README.md",
   "communityLink": "https://community.hubitat.com/t/midea-mini-split-wifi-support/78838/11"
 }
