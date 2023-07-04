@@ -568,20 +568,25 @@ def _updateAttributes(resp)
     
     def events = [[:]]
     
-    events +=    [name: "coolingSetpoint",             value: correctTemp(resp.target_temperature, "C")]
-    events +=    [name: "heatingSetpoint",             value: correctTemp(resp.target_temperature, "C")]
-    events +=    [name: "temperature",                 value: correctTemp(resp.indoor_temperature, "C")]
+    events +=    [name: "coolingSetpoint",             value: correctTemp(resp.target_temperature, "C"), unit: getUnit()]
+    events +=    [name: "heatingSetpoint",             value: correctTemp(resp.target_temperature, "C"), unit: getUnit()]
+    events +=    [name: "temperature",                 value: correctTemp(resp.indoor_temperature, "C"), unit: getUnit()]
     events +=    [name: "thermostatFanMode",           value: translateFanMode(resp.fan_speed?.toInteger(), "integer")]
     events +=    [name: "thermostatMode",              value: translateMode(resp.operational_mode?.toInteger(), "integer")]
     events +=    [name: "thermostatOperatingState",    value: resp.power_state ? "on" : "off" ]
-    events +=    [name: "thermostatSetpoint",          value: correctTemp(resp.target_temperature, "C")]
-    events +=    [name: "outdoorTemperature",          value: correctTemp(resp.outdoor_temperature, "C")]
+    events +=    [name: "thermostatSetpoint",          value: correctTemp(resp.target_temperature, "C"), unit: getUnit()]
+    events +=    [name: "outdoorTemperature",          value: correctTemp(resp.outdoor_temperature, "C"), unit: getUnit()]
     events +=    [name: "turboMode",                   value: resp.turbo_mode ? "on" : "off"]
     
     events.each
     {
         sendEvent(it)
     }  
+}
+
+def getUnit()
+{
+    return (degC) ? "°C" : "°F"
 }
 
 def translateMode(value, inputType)
