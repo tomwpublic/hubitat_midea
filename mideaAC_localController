@@ -544,10 +544,10 @@ def correctTemp(input, inputScale)
     switch(inputScale)
     {
         case "F":
-            return (degC ? fahrenheitToCelsius(new BigDecimal(input)) : (Math.round(new BigDecimal(input) * 2) / 2).setScale(1, BigDecimal.ROUND_HALF_UP))
+            return (degC ? (Math.round(fahrenheitToCelsius(new BigDecimal(input)) * 2) / 2).setScale(1, BigDecimal.ROUND_HALF_UP) : new BigDecimal(input))
         
         case "C":
-            return (degC ? new BigDecimal(input) : (Math.round(celsiusToFahrenheit(new BigDecimal(input)) * 2) / 2).setScale(1, BigDecimal.ROUND_HALF_UP))
+            return (degC ? new BigDecimal(input) : (new BigDecimal(Math.round(celsiusToFahrenheit(new BigDecimal(input))))).setScale(1, BigDecimal.ROUND_HALF_UP))
         
         default:
             return input
@@ -556,7 +556,7 @@ def correctTemp(input, inputScale)
 
 def ensureCelsius(input)
 {
-    return (degC) ? new BigDecimal(input) : fahrenheitToCelsius(new BigDecimal(input))
+    return (degC) ? new BigDecimal(input) : (Math.round(fahrenheitToCelsius(new BigDecimal(input)) * 2) / 2).setScale(1, BigDecimal.ROUND_HALF_UP)
 }
 
 def _updateAttributes(resp)
