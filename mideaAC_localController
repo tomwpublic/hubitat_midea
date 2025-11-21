@@ -26,6 +26,7 @@ Change history:
     tomw - Command dropdown lists on device page now match actual supported settings.
 0.9.4 - jcox10 - Bugfixes for "off" thermostat mode.
 0.9.5 - tomw - Support for Turbo mode (command and attribute).
+0.9.6 - Added TemperatureMeasurement capability to expose temperature sensor for use in rules and automations.
 
 */
 
@@ -39,6 +40,7 @@ metadata
         capability "FanControl"
         capability "Initialize"
         capability "Refresh"
+        capability "TemperatureMeasurement"
         capability "Thermostat"
         
         command "dry"
