@@ -18,6 +18,8 @@ Special thanks to ghgeiger and etienne from the Hubitat forums for their testing
 
 * In the *Devices* section of Hubitat, add a *New Virtual Device* of type Midea AC local controller.
 * On the configuration page for the newly created *Device*, enter the token, key, and device id from `midea-discover`, along with the IP address and port of your Midea AC unit.
+    * If discovery reports `'key': None, 'token': None`, the unit uses the older V2 protocol.  Set *Protocol version* to V2 and leave token and key blank.  Otherwise leave it on V3.
+    * The maintained fork of the discovery tool is `msmart-ng` (`pipx install msmart-ng`, then `msmart-ng discover`): https://github.com/mill1000/midea-msmart
 * Indicate whether you plan to use Celsius or Fahrenheit for your temperature setpoints and temperature reporting.  
 
 
